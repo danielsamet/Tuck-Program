@@ -1,0 +1,43 @@
+navigation: back and home btn
+
+setup - shop - data
+
+	setup: accounts - products
+		accounts: enumerate accounts, actions: import - add - delete all - page interaction
+			account info: fname, sname, budget, spending limit (daily), discount, limit below 0
+		products: ditto
+			products info: product name, cost price, selling price (show profit info), quantity owned, discount, purchase limit
+
+	shop: enumerate products w/ quantity - actions: add/remove quantity, select account, purchase btn, discount
+		(when selecting user show budget info / once selected)
+
+	data: product history, account history, log file (think of some sort of reports)
+
+	settings: compactness, font, colour scheme, password system for certain settings and perhaps for initialisation of program?, \
+	          enabling different functionality such as use of user discounts (always show, show only when above 0, never show but use if applicable, disable), \
+	          default limit below 0,
+
+
+Notes:
+I have forgotten specifics in what needs working on with accounts. Main functions have been implemented so I have moved on to products
+Edit the btns for edit/delete and the like by splitting them to simplify them
+Add functionality to adding items so that the 'Enter' key can be used
+Add search functionality where one would type without needing to click a search button and it would narrow down the results
+Create an exporter
+Globalise font details
+enable importing of accounts with minimum of f/l_name and budget and for products with just name and selling price
+-------
+use data validation / correction when importing: 
+	do not allow more than one account with the same name;
+	do not allow more data on any account than necessary / only import relevant info
+page movement after adding account
+page scrolling with exact number per page(s)
+data validation for adding entries
+
+
+future plans:
+create web server for multiple clients to access
+use raspi zero w as a server for multiple clients to access (augment it with an rtc chip)
+log (with full timestamps)
+verify actions complete successfully and report accordingly
+Provide multiple view types (grid, compact, etc.)
