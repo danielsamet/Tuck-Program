@@ -6,7 +6,7 @@ setup - shop - data
 		accounts: enumerate accounts, actions: import - add - delete all - page interaction
 			account info: fname, sname, budget, spending limit (daily), discount, limit below 0
 		products: ditto
-			products info: product name, cost price, selling price (show profit info), quantity owned, discount, purchase limit
+			products info: product name, cost price, selling price (show profit info), quantity owned, discount (% / £), buy x get y free, purchase limit
 
 	shop: enumerate products w/ quantity - actions: add/remove quantity, select account, purchase btn, discount
 		(when selecting user show budget info / once selected)
@@ -15,7 +15,7 @@ setup - shop - data
 
 	settings: compactness, font, colour scheme, password system for certain settings and perhaps for initialisation of program?, \
 	          enabling different functionality such as use of user discounts (always show, show only when above 0, never show but use if applicable, disable), \
-	          default limit below 0,
+	          default limit below 0, default discount type,
 
 
 Notes:

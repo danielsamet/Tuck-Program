@@ -4,6 +4,7 @@ import tkinter.messagebox
 import math
 import sqlite3
 import datetime
+from collections import OrderedDict
 
 # currently working on: data correction; ??
 
@@ -81,6 +82,7 @@ class TuckProgram:
             "Selling Price" INTEGER NOT NULL,
             Quantity INTEGER,
             Discount INTEGER,
+            "Buy X Get Y Free" VARCHAR(10),
             "Purchase Limit" INTEGER,
             added DATE NOT NULL);
             """)
@@ -101,6 +103,7 @@ class TuckProgram:
     def main_menu(self):  # populates the main_frame with the main menu consisting of 3 buttons: Setup, Shop and Data
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+        self.back_btn.config(command=lambda: NONE), self.home_btn.config(command=lambda: NONE)
         Grid.rowconfigure(self.main_frame, 0, weight=1)
         for i in range(1, 6):
             Grid.rowconfigure(self.main_frame, i, weight=0)  # necessary to reset row configuration when navigating from
@@ -127,9 +130,9 @@ class TuckProgram:
     def setup(self):  # populates the main_frame with the two setup options: Accounts and Products
         for widget in self.main_frame.winfo_children():
             widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu())
+        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
         self.title_var.set("Setup")
-        self.unbind()
+        self.unbind(title_cut=False)
 
         Grid.columnconfigure(self.main_frame, 0, weight=1)
         Grid.columnconfigure(self.main_frame, 1, weight=1)
@@ -144,12 +147,13 @@ class TuckProgram:
 
         self.main_frame.bind_all(1, lambda event: self.accounts())
         self.main_frame.bind_all(2, lambda event: self.products())
+        self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
 
-    def shop(self, page_num=1, user=list()):  # populates the main_frame with the list of accounts for one to be selected
-        # so that a transaction can be made on the chosen account
+    def shop(self, page_num=1, user=list()):  # populates the main_frame with the list of accounts for one to be
+        # selected so that a transaction can be made on the chosen account
         for widget in self.main_frame.winfo_children():
             widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu())
+        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
         self.title_var.set("Shop ({}){}".format(len(self.table_reader('products')), ' - {}'.format(
             ''.join(self.search).upper()) if len(self.search) != 0 else ''))
 
@@ -159,6 +163,7 @@ class TuckProgram:
         font = ("Calibri", "14", "bold")
 
         # frame initialisation
+        sales = OrderedDict()
         item_frame = Frame(self.main_frame, bg='red4')
         item_frame.grid(row=0, column=0, sticky=N + E + S + W)
         sale_frame = Frame(self.main_frame, bg='lightblue', width=250)
@@ -171,12 +176,24 @@ class TuckProgram:
         operation_btn_frame = Frame(self.main_frame, bg='green1')
         operation_btn_frame.grid(row=1, column=0, ipady=10, sticky=N + E + S + W)
 
+        scrollbar = Scrollbar(sale_itemised)
+        scrollbar.grid(row=0, column=1, sticky=N + S)
+        listbox = Listbox(sale_itemised, yscrollcommand=scrollbar.set, font=("Calibri", "18", "bold"))
+        listbox.bindtags((listbox, sale_itemised, "all"))
+        listbox.grid(row=0, column=0, sticky=N + E + S + W)
+        scrollbar.config(command=listbox.yview)
+
+        Grid.rowconfigure(sale_itemised, 0, weight=1)
+        Grid.columnconfigure(sale_itemised, 0, weight=10), Grid.columnconfigure(sale_itemised, 1, weight=0)
+
         total_product_pages = math.ceil(len(self.table_reader('products'))
                                         / (self.page_items_width * self.page_items_height))
         total_product_pages = 1 if total_product_pages == 0 else total_product_pages
         total_user_pages = math.ceil(len(self.table_reader('accounts'))
                                      / (self.page_items_width * self.page_items_height))
         total_user_pages = 1 if total_user_pages == 0 else total_user_pages
+
+        items = self.table_reader('products', self.get_columns('products')[1])
 
         details_amount_var, details_total_var = list(), list()
 
@@ -192,11 +209,17 @@ class TuckProgram:
 
             self.bind(product_populator, page.get())
 
-            items = self.table_reader('products', self.get_columns('products')[1])
             offset = (page.get() - 1) * self.page_items_width * self.page_items_height
 
             product_frame, product_lbl, increase_qty, decrease_qty, i = dict(), dict(), dict(), dict(), int()
             product_details1, product_details2, product_details3 = dict(), dict(), dict()
+
+            def qty_changer(l, change):
+                details_amount_var[l].set('x{}'.format(
+                    int(details_amount_var[l].get()[1:]) + change)),
+                details_total_var[l].set('£{:.2f}'.format(
+                    int(details_amount_var[l].get()[1:]) * float(items[l][3]))),
+                sales_setter(l, int(details_amount_var[l].get()[1:])), details_updater()
 
             for j in range(self.page_items_height):
                 Grid.rowconfigure(item_frame, j, weight=1)
@@ -211,30 +234,22 @@ class TuckProgram:
                         product_frame[i].grid_propagate(False)
                         product_lbl[i] = Label(product_frame[i], text="{}".format(items[i + offset][1]), font=font)
                         product_lbl[i].grid(row=0, column=1, columnspan=3, sticky=E + W)
-                        product_details1[i] = Label(product_frame[i], text="£{}".format("{:.2f}".format(items[i + offset][3])),
-                                                    font=font, width=6)
+                        product_details1[i] = Label(product_frame[i], text="£{}".format(
+                            "{:.2f}".format(items[i + offset][3])), font=font, width=6)
                         product_details1[i].grid(row=1, column=1, sticky=E + W)
 
-                        product_details2[i] = Label(product_frame[i], textvariable=details_amount_var[i + offset], font=font,
-                                                    width=6)
+                        product_details2[i] = Label(product_frame[i], textvariable=details_amount_var[i + offset],
+                                                    font=font, width=6)
                         product_details2[i].grid(row=1, column=2, sticky=E + W)
-                        product_details3[i] = Label(product_frame[i], textvariable=details_total_var[i + offset], font=font,
-                                                    width=7)
+                        product_details3[i] = Label(product_frame[i], textvariable=details_total_var[i + offset],
+                                                    font=font, width=7)
                         product_details3[i].grid(row=1, column=3, sticky=E + W)
                         increase_qty[i] = Button(product_frame[i], text='+', font=font,
-                                                 command=lambda i=i + offset: self.combine_funcs(details_amount_var[i].set(
-                                                     'x{}'.format(int(details_amount_var[i].get()[1:]) + 1)),
-                                                     details_total_var[i].set('£{:.2f}'.format(
-                                                         int(details_amount_var[i].get()[1:]) * float(items[i][3]))),
-                                                 details_updater()))
+                                                 command=lambda offset_i=i + offset: qty_changer(offset_i, 1))
                         increase_qty[i].grid(row=0, column=0, sticky=E + W)
                         decrease_qty[i] = Button(product_frame[i], text='-', font=font,
-                                                 command=lambda i=i + offset: self.combine_funcs(details_amount_var[i].set(
-                                                     'x{}'.format(int(details_amount_var[i].get()[1:]) - 1)),
-                                                     details_total_var[i].set('£{:.2f}'.format(
-                                                         int(details_amount_var[i].get()[1:]) * float(items[i][3]))),
-                                                 details_updater())
-                                                 if float(details_amount_var[i].get()[1:]) > 0 else None)
+                                                 command=lambda offset_i=i + offset: qty_changer(offset_i, -1)
+                                                 if float(details_amount_var[offset_i].get()[1:]) > 0 else None)
                         decrease_qty[i].grid(row=1, column=0, sticky=E + W)
 
                         Grid.columnconfigure(product_frame[i], 0, weight=2)
@@ -246,6 +261,19 @@ class TuckProgram:
                     except IndexError:
                         break
                     i += 1
+
+        def sales_setter(product_no, quantity):
+            item = items[product_no]
+            sales[item[0]] = "{0:}x{1:>6} @£{2:.2f} = £{3:.2f}".format(quantity, item[1], item[3], quantity*item[3])
+            if item[5] > 0:
+                total = float(sales[item[0]][sales[item[0]].rfind('£') + 1:])
+                sales[int(item[0]) + .5] = "{0:>6}% off = £{1:.2f}".format(
+                    item[5], total - (total * float(item[5]) / 100))
+            if quantity == 0:
+                del sales[item[0]], sales[int(item[0]) + .5]
+            listbox.delete(0, END)
+            for m in sales.values():
+                listbox.insert(END, m)
 
         def account_populator():  # page populator specific for the accounts previewed in the shop page
             for item in item_frame.grid_slaves():
@@ -283,6 +311,15 @@ class TuckProgram:
             subtotal_var.set("Subtotal: £{:.2f}".format(total))
             user_discount_var.set("User Discount: £{:.2f} ({}%)".format(
                 float(subtotal_var.get()[11:]) * (user[4] / 100), user[4])) if user else None
+
+            total_discounts = float()
+            for key in [key for key in sales.keys() if '.' in str(key)]:  # loops through discount keys, adding just
+                # the discount values
+                total_discounts += float(sales[int(key)][sales[int(key)].rfind('£') + 1:]) \
+                                   - float(sales[key][sales[key].rfind('£') + 1:])
+            total_item_discounts_var.set("Total Items Discount: £{:.2f}".format(total_discounts))
+
+            total -= total_discounts
             total = total - total * (user[4] / 100) if user else total
             total_var.set("Total: £{:.2f}".format(total))
             new_balance_var.set("New Balance: £{:.2f}".format(float(user_budget_var.get()[9:]) - total))
@@ -370,11 +407,15 @@ class TuckProgram:
         total_var.set("Total: £0.00")
         new_balance_var.set("New Balance: £{:.2f}".format(float(user_budget_var.get()[9:])))
 
+        self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
+
     def data(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu())
+        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
         self.title_var.set("Data")
+        self.unbind(title_cut=False)
+        self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
 
     def accounts(self, page_num=1):
         # provides the appropriate data for the setup_window_generator to generate the accounts window (see the
@@ -457,6 +498,7 @@ class TuckProgram:
         self.delete.clear()
 
         self.bind(caller, page.get())
+        self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.setup())
 
     def bind(self, caller, page):  # this function binds all relevant characters for the sake of name searching
         if len(self.search) < 30:  # Until widget size is made more dynamic or is changed permanently buttons in the
@@ -493,8 +535,9 @@ class TuckProgram:
         else:
             self.main_frame.unbind_all('<BackSpace>')
 
-    def unbind(self, keep_search=False):
-        self.title_var.set(self.title_var.get()[:self.title_var.get().find('-') - 1])
+    def unbind(self, keep_search=False, title_cut=True):
+        if title_cut:
+            self.title_var.set(self.title_var.get()[:self.title_var.get().find('-') - 1])
         for letter in self.letters:
             self.main_frame.unbind_all(letter)
         for number in self.numbers:
@@ -505,12 +548,15 @@ class TuckProgram:
 
     def item_form(self, action, page_num, table, caller, info=None):
         # creates form for adding (action=0) or editing (action=1) item
+
         for widget in self.main_frame.winfo_children():
             widget.destroy()
         self.back_btn.config(command=lambda: caller(page_num))
 
         center_frame = Frame(self.main_frame)
+
         self.unbind()
+        self.main_frame.bind_all('<Control-BackSpace>', lambda event: caller(page_num))
 
         if action == 0:
             action_ = "Add"
@@ -602,7 +648,7 @@ class TuckProgram:
                              command=lambda: add())
             add_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W + E)
 
-        for i in range(6):
+        for i in range(len(self.get_columns(table)[1:])):
             Grid.rowconfigure(center_frame, i, weight=1)
         Grid.columnconfigure(center_frame, 0, weight=2)
         Grid.columnconfigure(center_frame, 1, weight=1)
@@ -621,6 +667,7 @@ class TuckProgram:
         # appends given data into database but first checks for validity including if item is duplicate
         items = self.table_reader(table)
         data = self.account_data_validator(args[0], table)
+
         if not data:
             if not silence:
                 tkinter.messagebox.showerror("Data Validity Error",
@@ -641,13 +688,13 @@ class TuckProgram:
                 return False
 
         if not duplicate:
-            num_of_vals = '?, ?, ?, ?, ?, ?{}'.format(', ?' if table != 'accounts' else None)
-            values = [data[0], data[1], data[2], data[3], data[4],
-                      data[5] if table != 'accounts' else datetime.datetime.now(),
-                      datetime.datetime.now() if table != 'accounts' else None]
+            num_of_vals = '?, ?, ?, ?, ?, ?{}'.format(', ?, ?' if table == 'products' else None)
+            values = [data[0], data[1], data[2], data[3], data[4], datetime.datetime.now()]
+            if table == 'products':
+                values.insert(-1, data[5]), values.insert(-1, data[6])
 
             num_of_vals = num_of_vals[:-4] if table == 'accounts' else num_of_vals
-            values = values[:-1] if table == 'accounts' else values
+            # values = values[:-1] if table == 'accounts' else values
 
             self.cursor.execute(
                 "INSERT INTO {} VALUES (NULL, {});".format(table, num_of_vals), values)
@@ -661,7 +708,7 @@ class TuckProgram:
 
     def csv_reader(self, csv_address, depth=2):  # imports csv and breaks it up into a returned list
         try:
-            with open(csv_address, 'r') as file:
+            with open(csv_address, 'r', encoding="UTF-8") as file:
                     file = file.read()
             csv = file.split('\n')
             if depth == 2:
@@ -677,7 +724,7 @@ class TuckProgram:
         # amended input data or that it is False
 
         # ensures only 5/6 items are to be in data list
-        size = 5 if table == 'accounts' else 6
+        size = len(self.get_columns(table)[1:-1])
         if len(data) < 2:
             return False
         while len(data) > size:
@@ -702,7 +749,8 @@ class TuckProgram:
                     return False
 
         for i in range(2 if table == 'accounts' else 1, size):  # numbers amendments
-            data[i] = '{:.2f}'.format(float(data[i]))
+            data[i] = '{:.2f}'.format(float(data[i]) if data[i] is not '' else 0)
+
         return data
 
     def importer(self, csv_address, table):  # imports data from external csv file to a local csv file
