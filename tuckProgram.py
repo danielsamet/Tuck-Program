@@ -270,7 +270,9 @@ class TuckProgram:
                 sales[int(item[0]) + .5] = "{0:>6}% off = £{1:.2f}".format(
                     item[5], total - (total * float(item[5]) / 100))
             if quantity == 0:
-                del sales[item[0]], sales[int(item[0]) + .5]
+                del sales[item[0]]
+                if int(item[0]) + .5 in sales:
+                    del sales[int(item[0]) + .5]
             listbox.delete(0, END)
             for m in sales.values():
                 listbox.insert(END, m)
