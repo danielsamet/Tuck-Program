@@ -17,7 +17,7 @@ class TuckProgram:
         # populated by the appropriate function with the relevant page details
         root = Tk()
         root.config(bg='grey11')
-        width, height = 1200, 700
+        width, height = 1400, 700
         root.minsize(width, height)
         x = (root.winfo_screenwidth() / 2) - (width / 2)
         y = (root.winfo_screenheight() / 2.2) - (height / 2)
@@ -211,15 +211,19 @@ class TuckProgram:
 
             offset = (page.get() - 1) * self.page_items_width * self.page_items_height
 
-            product_frame, product_lbl, increase_qty, decrease_qty, i = dict(), dict(), dict(), dict(), int()
+            product_frame, product_lbl, increase_qty, decrease_qty, m = dict(), dict(), dict(), dict(), int()
             product_details1, product_details2, product_details3 = dict(), dict(), dict()
 
-            def qty_changer(l, change):
-                details_amount_var[l].set('x{}'.format(
-                    int(details_amount_var[l].get()[1:]) + change)),
-                details_total_var[l].set('£{:.2f}'.format(
-                    int(details_amount_var[l].get()[1:]) * float(items[l][3]))),
-                sales_setter(l, int(details_amount_var[l].get()[1:])), details_updater()
+            def qty_changer(no, change):
+                if int(details_amount_var[no].get()[1:]) != items[no][7] or items[no][7] == 0:
+                    details_amount_var[no].set('x{}'.format(int(details_amount_var[no].get()[1:]) + change))
+                    details_total_var[no].set('£{:.2f}'.format(int(details_amount_var[no].get()[1:]) *
+                                                               float(items[no][3])))
+                    sales_setter(no, int(details_amount_var[no].get()[1:]))
+                    details_updater()
+                else:
+                    tkinter.messagebox.showinfo("Purchase Limit", "There is a purchase limit for \'{}\' of {}.".format(
+                        items[no][1], items[no][7]))
 
             for j in range(self.page_items_height):
                 Grid.rowconfigure(item_frame, j, weight=1)
@@ -227,40 +231,40 @@ class TuckProgram:
                     if j == 0:
                         Grid.columnconfigure(item_frame, k, weight=1)
                     try:
-                        items[i + offset]  # strangest thing ever! lines occur in the item_frame unless the items array
+                        items[m + offset]  # strangest thing ever! lines occur in the item_frame unless the items array
                         # is referenced with the offset provided.
-                        product_frame[i] = Frame(item_frame, bg='pink', height=100, width=10)
-                        product_frame[i].grid(row=j, column=k, padx=10, pady=5, sticky=E + W)
-                        product_frame[i].grid_propagate(False)
-                        product_lbl[i] = Label(product_frame[i], text="{}".format(items[i + offset][1]), font=font)
-                        product_lbl[i].grid(row=0, column=1, columnspan=3, sticky=E + W)
-                        product_details1[i] = Label(product_frame[i], text="£{}".format(
-                            "{:.2f}".format(items[i + offset][3])), font=font, width=6)
-                        product_details1[i].grid(row=1, column=1, sticky=E + W)
+                        product_frame[m] = Frame(item_frame, bg='pink', height=100, width=10)
+                        product_frame[m].grid(row=j, column=k, padx=10, pady=5, sticky=E + W)
+                        product_frame[m].grid_propagate(False)
+                        product_lbl[m] = Label(product_frame[m], text="{}".format(items[m + offset][1]), font=font)
+                        product_lbl[m].grid(row=0, column=1, columnspan=3, sticky=E + W)
+                        product_details1[m] = Label(product_frame[m], text="£{}".format(
+                            "{:.2f}".format(items[m + offset][3])), font=font, width=6)
+                        product_details1[m].grid(row=1, column=1, sticky=E + W)
 
-                        product_details2[i] = Label(product_frame[i], textvariable=details_amount_var[i + offset],
+                        product_details2[m] = Label(product_frame[m], textvariable=details_amount_var[m + offset],
                                                     font=font, width=6)
-                        product_details2[i].grid(row=1, column=2, sticky=E + W)
-                        product_details3[i] = Label(product_frame[i], textvariable=details_total_var[i + offset],
+                        product_details2[m].grid(row=1, column=2, sticky=E + W)
+                        product_details3[m] = Label(product_frame[m], textvariable=details_total_var[m + offset],
                                                     font=font, width=7)
-                        product_details3[i].grid(row=1, column=3, sticky=E + W)
-                        increase_qty[i] = Button(product_frame[i], text='+', font=font,
-                                                 command=lambda offset_i=i + offset: qty_changer(offset_i, 1))
-                        increase_qty[i].grid(row=0, column=0, sticky=E + W)
-                        decrease_qty[i] = Button(product_frame[i], text='-', font=font,
-                                                 command=lambda offset_i=i + offset: qty_changer(offset_i, -1)
-                                                 if float(details_amount_var[offset_i].get()[1:]) > 0 else None)
-                        decrease_qty[i].grid(row=1, column=0, sticky=E + W)
+                        product_details3[m].grid(row=1, column=3, sticky=E + W)
+                        increase_qty[m] = Button(product_frame[m], text='+', font=font,
+                                                 command=lambda offset_m=m + offset: qty_changer(offset_m, 1))
+                        increase_qty[m].grid(row=0, column=0, sticky=E + W)
+                        decrease_qty[m] = Button(product_frame[m], text='-', font=font,
+                                                 command=lambda offset_m=m + offset: qty_changer(offset_m, -1)
+                                                 if float(details_amount_var[offset_m].get()[1:]) > 0 else None)
+                        decrease_qty[m].grid(row=1, column=0, sticky=E + W)
 
-                        Grid.columnconfigure(product_frame[i], 0, weight=2)
-                        Grid.columnconfigure(product_frame[i], 1, weight=1)
-                        Grid.columnconfigure(product_frame[i], 2, weight=1)
-                        Grid.columnconfigure(product_frame[i], 3, weight=1)
-                        Grid.rowconfigure(product_frame[i], 0, weight=1)
-                        Grid.rowconfigure(product_frame[i], 1, weight=1)
+                        Grid.columnconfigure(product_frame[m], 0, weight=2)
+                        Grid.columnconfigure(product_frame[m], 1, weight=1)
+                        Grid.columnconfigure(product_frame[m], 2, weight=1)
+                        Grid.columnconfigure(product_frame[m], 3, weight=1)
+                        Grid.rowconfigure(product_frame[m], 0, weight=1)
+                        Grid.rowconfigure(product_frame[m], 1, weight=1)
                     except IndexError:
                         break
-                    i += 1
+                    m += 1
 
         def sales_setter(product_no, quantity):
             item = items[product_no]
@@ -273,6 +277,7 @@ class TuckProgram:
                 del sales[item[0]]
                 if int(item[0]) + .5 in sales:
                     del sales[int(item[0]) + .5]
+
             listbox.delete(0, END)
             for m in sales.values():
                 listbox.insert(END, m)
