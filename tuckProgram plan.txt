@@ -4,18 +4,20 @@ setup - shop - data
 
 	setup: accounts - products
 		accounts: enumerate accounts, actions: import - add - delete all - page interaction
-			account info: fname, sname, budget, spending limit (daily), discount, limit below 0
+			account info: fname, sname, budget, spending limit per, discount (% / £), sub-zero allowance, notes
+			    notes: there can only be one of each of the following at a time: spending limit, discount and sub-zero allowance. These can only be deleted once they are active.
 		products: ditto
-			products info: product name, cost price, selling price (show profit info), quantity owned, discount (% / £), buy x get y free, purchase limit
+			products info: product name, cost price, selling price (show profit info), quantity, discount (% / £), offer (buy x get y free), purchase limit per, notes
+			notes: there can only be one of each of the following at a time: discount, offer and purchase limit. These can only be deleted once they are active.
 
 	shop: enumerate products w/ quantity - actions: add/remove quantity, select account, purchase btn, discount
 		(when selecting user show budget info / once selected)
 
-	data: product history, account history, log file (think of some sort of reports)
+	data: product history, account history, log file (some sort of reports)
 
 	settings: compactness, font, colour scheme, password system for certain settings and perhaps for initialisation of program?, \
 	          enabling different functionality such as use of user discounts (always show, show only when above 0, never show but use if applicable, disable), \
-	          default limit below 0, default discount type,
+	          default limit below 0, default discount type, alert for low quantity, alerts for offers ending soon
 
 
 Notes:
@@ -26,6 +28,9 @@ Add search functionality where one would type without needing to click a search 
 Create an exporter
 Globalise font details
 enable importing of accounts with minimum of f/l_name and budget and for products with just name and selling price
+Create a user system and encrypt database so it can only be accessed through the program
+Allow editing of budget for user with the right credentials
+Allow extension of data that is time bound (for example extending an offer on an item)
 -------
 use data validation / correction when importing: 
 	do not allow more than one account with the same name;

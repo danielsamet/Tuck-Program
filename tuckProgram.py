@@ -66,24 +66,37 @@ class TuckProgram:
             """
             CREATE TABLE accounts (
             account_no INTEGER PRIMARY KEY,
-            "First Name" VARCHAR(20) NOT NULL,
-            "Last Name" VARCHAR(30) NOT NULL,
-            Budget INTEGER NOT NULL,
-            Discount INTEGER,
-            "Spending Limit" INTEGER,
+            f_name VARCHAR(20) NOT NULL,
+            l_name VARCHAR(30) NOT NULL,
+            budget INTEGER NOT NULL,
+            discount_1 VARCHAR(1),
+            discount_2 INTEGER,
+            discount_3 INTEGER,
+            discount_4 VARCHAR(11),
+            spending_limit_1 INTEGER,
+            spending_limit_2 VARCHAR(9),
+            sub_zero_allowance INTEGER,
+            notes VARCHAR(255),
             added DATE NOT NULL);
             """)
         sql_command.append(
             """
             CREATE TABLE products (
             product_no INTEGER PRIMARY KEY,
-            "Product Name" VARCHAR(20) NOT NULL,
-            "Cost Price" INTEGER,
-            "Selling Price" INTEGER NOT NULL,
-            Quantity INTEGER,
-            Discount INTEGER,
-            "Buy X Get Y Free" VARCHAR(10),
-            "Purchase Limit" INTEGER,
+            p_name VARCHAR(20) NOT NULL,
+            cost_price INTEGER,
+            selling_price INTEGER NOT NULL,
+            quantity INTEGER,
+            discount INTEGER,
+            offer_1 INTEGER,
+            offer_2 INTEGER,
+            offer_3 INTEGER,
+            offer_4 INTEGER,
+            offer_5 VARCHAR(11),
+            purchase_limit_1 INTEGER,
+            purchase_limit_2 VARCHAR(9),
+            sub_zero_allowance INTEGER
+            notes VARCHAR(255),
             added DATE NOT NULL);
             """)
         sql_command.append(
@@ -560,7 +573,7 @@ class TuckProgram:
             widget.destroy()
         self.back_btn.config(command=lambda: caller(page_num))
 
-        center_frame = Frame(self.main_frame)
+        center_frame = Frame(self.main_frame, bg='purple')
 
         self.unbind()
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: caller(page_num))
@@ -602,19 +615,151 @@ class TuckProgram:
 
         self.title_var.set("{} - {}".format(table.capitalize(), action_))
 
-        font1, font2 = ("Calibri", "22", "bold"), ("Calibri", "22")
-        ipadx, ipady, padx, pady, width = 10, 10, 20, 0, 20
-        lbl, entry, var, i = list(), list(), list(), int()
+        font1, font2 = ("Calibri", "18", "bold"), ("Calibri", "18")
+        ipadx, ipady, padx, pady, width = 10, 8, 20, 5, 18
+        lbl, data, var, i = list(), list(), list(), int()
 
-        for column in self.get_columns(table)[1:-1]:
-            lbl.append(Label(center_frame, text=column + ':', font=font1, width=width))
-            lbl[i].grid(row=i, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=S + E)
-            var.append(StringVar())
-            entry.append(Entry(center_frame, textvariable=var[i], font=font2, width=width))  # must add data validation
-            entry[i].grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=S + W)
-            entry[i].bind('<Return>', lambda event: add() if info is None else edit())
+        if table == 'accounts':
+            [var.append(StringVar()) for _ in range(len(self.get_columns(table)[1:-1]))]
+            # budget, top_up, discount_type, limit_type = StringVar(), StringVar(), StringVar(), StringVar()
+
+            frames = list()
+            for i in range(7):
+                frames.append(Frame(center_frame))
+                frames[i].grid(row=i, column=0, columnspan=2, pady=pady, sticky=E + W)
             i += 1
-        entry[0].focus()
+            Label(frames[0], text='First Name', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[0], textvariable=var[0], font=font2, width=width*3, bg='red') \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[0], 1, weight=1)
+
+            Label(frames[1], text='Last Name', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[1], textvariable=var[1], font=font2, width=width*3, bg='red') \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[1], 1, weight=1)
+
+            Label(frames[2], text='Budget', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Label(frames[2], textvariable=var[2], font=font2, width=int(width / 3), bg='red') \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
+            top_up_btn = Button(
+                frames[2], text='Top Up', font=font2, width=width*2, bg='red', command=lambda: self.combine_funcs(
+                    top_up_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                    top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
+                    top_up_btn.config(command=lambda: self.combine_funcs(
+                        var[2].set(float(var[2].get() if var[2].get() != '' else 0) +
+                                   float(budget.get() if budget.get() != '' else 0)), budget.set('')))))
+            top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[2], 2, weight=1)
+            budget = StringVar()
+            top_up_entry = Entry(frames[2], textvariable=budget, font=font2, width=int(width / 3), bg='red')
+            # add an 'Add Indefinitely' btn to time-bound details such as discounts
+
+            def add_discount(add_discount_btn_, from_edit=False):  # allows recursive swapping between adding and
+                # editing a discount
+                add_discount_btn_ = Button(frames[3], text="Add", font=font1, width=int(width / 2), bg='red',
+                                           command=lambda: self.combine_funcs(
+                    self.combine_funcs(
+                        opt_menu_1.grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        discount_amount.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        discount_per_lbl.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        discount_length.grid(row=0, column=4, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        opt_menu_2.grid(row=0, column=5, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        add_discount_btn_.grid(row=0, column=6, padx=padx, sticky=E + W))
+                    if not from_edit else
+                    self.combine_funcs(
+                        opt_menu_1.config(state=DISABLED), discount_amount.config(state=DISABLED),
+                        discount_length.config(state=DISABLED), opt_menu_2.config(state=DISABLED),
+                        add_discount_btn_.config(text='Edit', command=lambda: self.combine_funcs(
+                            opt_menu_1.config(state=NORMAL), discount_amount.config(state=NORMAL),
+                            discount_length.config(state=NORMAL), opt_menu_2.config(state=NORMAL),
+                            add_discount_btn_.grid_forget(),
+                            add_discount(add_discount_btn_, True).grid(row=0, column=6, padx=padx, sticky=E + W),
+                        ))
+                    ),
+                    add_discount_btn_.config(text='Add', command=lambda: self.combine_funcs(
+                        opt_menu_1.config(state=DISABLED), discount_amount.config(state=DISABLED),
+                        discount_length.config(state=DISABLED), opt_menu_2.config(state=DISABLED),
+                        add_discount_btn_.config(text='Edit', command=lambda: self.combine_funcs(
+                            opt_menu_1.config(state=NORMAL), discount_amount.config(state=NORMAL),
+                            discount_length.config(state=NORMAL), opt_menu_2.config(state=NORMAL),
+                            add_discount_btn_.grid_forget(),
+                            add_discount(add_discount_btn_, True).grid(row=0, column=6, padx=padx, sticky=E + W),
+                        ))
+                    )) if not from_edit else None
+                ))
+                return add_discount_btn_
+            Label(frames[3], text='Discount', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            add_discount_btn = Button()
+            add_discount(add_discount_btn).grid(row=0, column=1, padx=padx, sticky=E + W)
+            Grid.columnconfigure(frames[3], 1, weight=1)
+            var[3].set("%")
+            opt_menu_1 = OptionMenu(frames[3], var[3], "%", "£")
+            opt_menu_1.config(font=font2, bg='red')
+            opt_menu_1.nametowidget(opt_menu_1.menuname).configure(font=font2, bg='red')
+            discount_amount = Entry(frames[3], textvariable=var[4], font=font2, width=int(width / 3), bg='red')
+            discount_per_lbl = Label(frames[3], text='for', font=font2, width=int(width / 3), bg='red')
+            discount_length = Entry(frames[3], textvariable=var[5], font=font2, width=int(width / 3), bg='red')
+            var[6].set("week(s)")
+            opt_menu_2 = OptionMenu(frames[3], var[6],
+                                    "purchase(s)", "hour(s)", "day(s)", "week(s)", "month(s)", "year(s)")
+            opt_menu_2.config(font=font2, bg='red')
+            opt_menu_2.nametowidget(opt_menu_2.menuname).configure(font=font2, bg='red')
+
+            def add_spending_limit(add_spending_limit_btn_, from_edit=False):  # allows recursive swapping between
+                # adding and editing a discount
+                add_spending_limit_btn_ = Button(frames[4], text="Add", font=font1, width=width, bg='red',
+                                                 command=lambda: self.combine_funcs(
+                    self.combine_funcs(
+                        spending_limit.grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W),
+                        spending_limit_per.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        opt_menu_3.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        add_spending_limit_btn_.grid(row=0, column=4, padx=padx, sticky=E + W))
+                    if not from_edit else
+                    self.combine_funcs(
+                        spending_limit.config(state=DISABLED), opt_menu_3.config(state=DISABLED),
+                        add_spending_limit_btn_.config(text='Edit', command=lambda: self.combine_funcs(
+                            spending_limit.config(state=NORMAL), opt_menu_3.config(state=NORMAL),
+                            add_spending_limit_btn_.grid_forget(),
+                            add_spending_limit(add_spending_limit_btn_, True).grid(row=0, column=4, padx=padx, sticky=E + W),
+                        ))
+                    ),
+                    add_spending_limit_btn_.config(text='Add', command=lambda: self.combine_funcs(
+                        spending_limit.config(state=DISABLED), opt_menu_3.config(state=DISABLED),
+                        add_spending_limit_btn_.config(text='Edit', command=lambda: self.combine_funcs(
+                            spending_limit.config(state=NORMAL), opt_menu_3.config(state=NORMAL),
+                            add_spending_limit_btn_.grid_forget(),
+                            add_spending_limit(add_spending_limit_btn_, True).grid(row=0, column=4, padx=padx, sticky=E + W),
+                        ))
+                    )) if not from_edit else None
+                ))
+                return add_spending_limit_btn_
+            Label(frames[4], text='Spending Limit', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            add_spending_limit_btn = Button()
+            add_spending_limit(add_spending_limit_btn).grid(row=0, column=1, padx=padx, sticky=E + W)
+            Grid.columnconfigure(frames[4], 1, weight=1)
+            spending_limit = Entry(frames[4], textvariable=var[7], font=font2, width=int(width / 3), bg='red')
+            spending_limit_per = Label(frames[4], text='per', font=font2, width=int(width / 3), bg='red')
+            var[8].set("purchase")
+            opt_menu_3 = OptionMenu(frames[4], var[8], "purchase", "day", "week", "month")
+            opt_menu_3.config(font=font2, bg='red')
+            opt_menu_3.nametowidget(opt_menu_3.menuname).configure(font=font2, bg='red')
+
+            Label(frames[5], text='Sub-Zero Allowance', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[5], textvariable=var[9], font=font2, width=int(width / 3), bg='red') \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
+            # Grid.columnconfigure(frames[5], 1, weight=1)
+
+            Label(frames[6], text='Notes', font=font1, width=width, bg='red') \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[6], textvariable=var[10], font=font2, width=int(width / 3), bg='red') \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[6], 1, weight=1)
 
         data_valid = BooleanVar()
         if info is not None:
@@ -630,22 +775,33 @@ class TuckProgram:
 
             edit_btn = Button(center_frame, text="Edit", font=font1, bg="orange", width=width,
                               command=lambda: edit())
-            edit_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W + E)
+            edit_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
 
             for j in range(len(var)):
-                try:
-                    if table == 'products' and j > 2:
-                        var[j].set("{}".format(int(info[j+1])))
-                    else:
-                        var[j].set("{:.2f}".format(float(info[j+1])))
-                except ValueError:
-                    var[j].set(info[j+1])
+                column_name = self.get_columns(table)[j + 1]
+
+                if column_name in ['f_name', 'l_name']:
+                    var[j].set(info[j + 1])
+                elif column_name in ['budget', 'discount_2', 'spending_limit_1', 'sub_zero_allowance']:
+                    print(float(info[j + 1]))
+                    var[j].set("£{:.2f}".format(float(info[j + 1])))
+                elif column_name == 'discount_1':
+                    var[j].set(info[j + 1] if info[j + 1] in ['£', '%'] else '%')
+                else:
+                    var[j].set(info[j + 1])
+
+                # try:
+                #     if table == 'products' and j > 2:
+                #         var[j].set("{}".format(int(info[j+1])))
+                #     else:
+                #         var[j].set("{:.2f}".format(float(info[j+1])))
+                # except ValueError:
+                #     var[j].set(info[j+1])
 
             self.delete.append(info[0])
         else:
             def add():  # for the sake of binding the enter key
-                data_valid.set(self.data_appender(table, [item.get() for item in var]))
-                caller(page_num) if data_valid.get() else None
+                caller(page_num) if self.data_appender(table, [item.get() for item in var]) else None
 
             cancel_btn = Button(center_frame, text="Cancel", font=font1, bg="orange", width=width,
                                 command=lambda: caller(page_num))
@@ -655,9 +811,10 @@ class TuckProgram:
                              command=lambda: add())
             add_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W + E)
 
-        for i in range(len(self.get_columns(table)[1:])):
+        for i in range(len(self.get_columns(table)[1:-1]) + 1):
+            print(1)
             Grid.rowconfigure(center_frame, i, weight=1)
-        Grid.columnconfigure(center_frame, 0, weight=2)
+        Grid.columnconfigure(center_frame, 0, weight=1)
         Grid.columnconfigure(center_frame, 1, weight=1)
         Grid.columnconfigure(center_frame, 2, weight=0)
         Grid.columnconfigure(center_frame, 3, weight=0)
@@ -673,9 +830,9 @@ class TuckProgram:
     def data_appender(self, table, *args, silence=False):
         # appends given data into database but first checks for validity including if item is duplicate
         items = self.table_reader(table)
-        data = self.account_data_validator(args[0], table)
+        code, data = self.account_data_validator(args[0], table)
 
-        if not data:
+        if code != 0:
             if not silence:
                 tkinter.messagebox.showerror("Data Validity Error",
                                              "There is a problem with the entered data.\n\nPlease ensure that no symbol"
@@ -695,13 +852,13 @@ class TuckProgram:
                 return False
 
         if not duplicate:
-            num_of_vals = '?, ?, ?, ?, ?, ?{}'.format(', ?, ?' if table == 'products' else None)
-            values = [data[0], data[1], data[2], data[3], data[4], datetime.datetime.now()]
-            if table == 'products':
-                values.insert(-1, data[5]), values.insert(-1, data[6])
+            num_of_vals = str()
+            for _ in range(len(self.get_columns(table)) - 1):
+                num_of_vals += '?, '
+            num_of_vals = num_of_vals[:-2]
 
-            num_of_vals = num_of_vals[:-4] if table == 'accounts' else num_of_vals
-            # values = values[:-1] if table == 'accounts' else values
+            values = list()
+            [values.append(val) for val in data], values.append(datetime.datetime.now())
 
             self.cursor.execute(
                 "INSERT INTO {} VALUES (NULL, {});".format(table, num_of_vals), values)
@@ -727,10 +884,11 @@ class TuckProgram:
             csv = ''
         return csv
 
-    def account_data_validator(self, data, table):  # verifies validity of data returning either the input data,
-        # amended input data or that it is False
+    def account_data_validator(self, data, table):  # verifies validity of data; returns the input data
+        # (or, if possible, amended input data) as well as a code to identify whether the data is valid or if there is
+        # an error (and if so, what that error is)
 
-        # ensures only 5/6 items are to be in data list
+        # ensures the right number of items are in the data array (used for importing)
         size = len(self.get_columns(table)[1:-1])
         if len(data) < 2:
             return False
@@ -739,26 +897,39 @@ class TuckProgram:
         while len(data) < size:
             data.append('')
 
-        for i in range(0, 2 if table == 'accounts' else 1):  # name validation
+        code = 0
+
+        for i in range(len(data)):
+            column_name = self.get_columns(table)[i + 1]
+
+            if column_name in ['f_name', 'l_name']:
+                if data[i] == '':
+                    code = 1  # missing first / last name
+                for char in data[i]:
+                    if not (char.lower() in self.letters or char in self.numbers or char in '_- '):
+                        code = 2  # invalid char used in name
+
+            if column_name in ['budget', 'discount_2', 'spending_limit_1', 'sub_zero_allowance']:
+                if str(data[i]).count('.') > 1:
+                    code = 3  # multiple decimal places used
+                for symbol in '£$%':  # remove above symbols because numbers are stored without them
+                    data[i] = str(data[i]).replace(symbol, '')
+                if data[i] == '':  # if just left empty
+                    continue
+                for char in data[i]:
+                    if not (char in self.numbers or char == '.'):
+                        code = 4  # only numbers can be used (and optional single decimal place)
+
             if data[i] == '':
-                return False
-            for char in data[i]:
-                if not (char in self.letters or char in self.letters.upper() or char in self.numbers or char in '_- '):
-                    return False
+                if column_name == 'discount_1':
+                    data[i] = '%'
+                if column_name == 'discount_4':
+                    data[i] = 'week(s)'
+                if column_name == 'spending_limit_2':
+                    data[i] = 'purchase'
 
-        for i in range(2 if table == 'accounts' else 1, size):  # numbers validation
-            if str(data[i]).count('.') > 1:
-                return False
-            for symbol in '£$%':
-                data[i] = str(data[i]).replace(symbol, '')
-            for char in data[i]:
-                if not (char in self.numbers or char == '.'):
-                    return False
 
-        for i in range(2 if table == 'accounts' else 1, size):  # numbers amendments
-            data[i] = '{:.2f}'.format(float(data[i]) if data[i] is not '' else 0)
-
-        return data
+        return code, data
 
     def importer(self, csv_address, table):  # imports data from external csv file to a local csv file
         try:  # sort out if user cancels looking for csv address
@@ -770,7 +941,7 @@ class TuckProgram:
 
             for i in range(len(csv)):  # send data for validation
                 try:
-                    csv[i] = self.account_data_validator(csv[i], table)
+                    code, csv[i] = self.account_data_validator(csv[i], table)
                 except IndexError:
                     pass
 
