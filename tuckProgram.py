@@ -71,25 +71,25 @@ class TuckProgram:
             l_name VARCHAR(30) NOT NULL,
             budget INTEGER NOT NULL,
             discount_1 INTEGER,
-            discount_2 VARCHAR(11),
-            discount_3 VARCHAR(11),
+            discount_2 VARCHAR(1),
+            discount_3 INTEGER,
             discount_4 VARCHAR(11),
             discount_5 VARCHAR(11),
             spending_limit_1 INTEGER,
-            spending_limit_2 VARCHAR(9),
-            spending_limit_3 VARCHAR(11),
+            spending_limit_2 INTEGER,
+            spending_limit_3 VARCHAR(9),
             spending_limit_4 VARCHAR(11),
             spending_limit_5 VARCHAR(11),
-            spending_limit_6 VARCHAR(11),
             sub_zero_allowance_1 INTEGER,
-            sub_zero_allowance_2 VARCHAR(11),
+            sub_zero_allowance_2 INTEGER,
             sub_zero_allowance_3 VARCHAR(11),
             sub_zero_allowance_4 VARCHAR(11),
-            sub_zero_allowance_5 VARCHAR(11),
             notes VARCHAR(255),
             added DATE NOT NULL);
             """)
-        # extended discounts, spending limit and sub_zero_balance are for recording time periods.
+        # extended discounts, spending limit and sub_zero_balance entries are for recording time periods. x_1 is for
+        # type of time period - the rest are for the time period details (spending_limit_2 is the only exception and is
+        # used for the per choice (e.g. per purchase) - ??
         sql_command.append(
             """
             CREATE TABLE products (
@@ -573,7 +573,8 @@ class TuckProgram:
             self.main_frame.unbind_all(letter)
         for number in self.numbers:
             self.main_frame.unbind_all(number)
-            self.main_frame.unbind_all('<BackSpace>')
+        self.main_frame.unbind_all('<BackSpace>')
+        self.main_frame.unbind_all('<space>')
         if not keep_search:
             self.search = list()
 
@@ -583,7 +584,7 @@ class TuckProgram:
         [widget.destroy() for widget in self.main_frame.winfo_children()]
         self.back_btn.config(command=lambda: caller(page_num))
 
-        center_frame = Frame(self.main_frame, bg='purple', width=1200, height=100)
+        center_frame = Frame(self.main_frame, bg='grey50', width=1200, height=100)
         center_frame.grid_propagate(False)
 
         self.unbind()
@@ -597,7 +598,7 @@ class TuckProgram:
             action_ = "Edit"
 
             prev_account, next_account, page_num_prev, page_num_next = list(), list(), int(), int()
-            
+
             prev_account_btn = Button(self.main_frame, text="<-", width=4, font=("Calibri", "28", "bold"),
                                       command=lambda: self.item_form(1, page_num_prev, table, caller, prev_account))
             prev_account_btn.grid(row=0, column=0, padx=5)
@@ -605,7 +606,9 @@ class TuckProgram:
                                       command=lambda: self.item_form(1, page_num_next, table, caller, next_account))
             next_account_btn.grid(row=0, column=2, padx=5)
 
-            items = self.table_reader(table)
+            items = self.table_reader(table, 'l_name', 'f_name') if table == 'accounts' \
+                else self.table_reader(table, 'p_name')
+
             for i in range(len(items)):
                 if items[i][0] == info[0] and items[i][1] == info[1]:
                     if i == 0:
@@ -626,177 +629,221 @@ class TuckProgram:
 
         self.title_var.set("{} - {}".format(table.capitalize(), action_))
 
-        def time_period_frame_setter(frame, entry):  # adds necessary buttons, entries and labels for
-            # time bound details such as an offer
+        def time_period_frame_setter(frame, entry, coder, *vars_, delete=False):  # adds necessary buttons, entries and
+            # labels for time bound details such as an offer
 
-            btn_1 = Button(frame, text='Add', font=font2, bg='green', command=lambda: self.combine_funcs(
+            def btn_1_click():
                 btn_1.grid_forget(),
                 btn_2.grid(row=0, column=1, padx=padx, pady=pady, ipadx=ipadx, ipady=ipady, sticky=E + W),
                 btn_3.grid(row=0, column=2, padx=padx, pady=pady, ipadx=ipadx, ipady=ipady, sticky=E + W),
                 btn_4.grid(row=0, column=3, padx=padx, pady=pady, ipadx=ipadx, ipady=ipady, sticky=E + W),
                 Grid.columnconfigure(frame, 2, weight=1), Grid.columnconfigure(frame, 3, weight=1)
-            ))
 
-            btn_2 = Button(frame, text='INDEFINITELY', font=font2, width=width, bg='green', command=lambda:
-                           self.combine_funcs(
-                               btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
-                               entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
-                               [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
-                               Grid.columnconfigure(frame, 2, weight=1),
-                               Label(frame, text='to be applied indefinitely', font=font2,
-                                     bg='green').grid(row=0, column=2, sticky=W),
-                               btn_1.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W),
-                               btn_1.config(text='DELETE', width=int(width / 3), bg='red',
-                                            command=lambda: self.combine_funcs(
-                                                [widget.grid_forget() for widget in frame.winfo_children()[2:]],
-                                                frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
-                                                # 'frame'
-                                                [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(3)],
-                                                time_period_frame_setter(frame, entry)))
-                           ))
+            def btn_2_click():
+                time_codes[coder].set(1), btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
+                entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
+                [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
+                Grid.columnconfigure(frame, 2, weight=1),
+                Label(frame, text='to be applied indefinitely', font=font2,
+                      bg=lbls_colour).grid(row=0, column=2, sticky=W),
+                btn_1.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W),
+                btn_1.config(text='DELETE', width=int(width / 3), bg='red',
+                             command=lambda: self.combine_funcs(
+                                 [widget.grid_forget() for widget in frame.winfo_children()[2:]],
+                                 frame.winfo_children()[0].grid_forget(),  # this is the frame inside of 'frame'
+                                 [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(3)],
+                                 time_period_frame_setter(frame, entry, coder, *vars_, delete=True)))
 
-            date_entry = Frame(frame, bg='green')
-            btn_3 = Button(frame, text='UNTIL GIVEN DATE', font=font2, width=width, bg='green',
-                           command=lambda: self.combine_funcs(
-                               btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
-                               entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
-                               [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
-                               Grid.columnconfigure(frame, 4, weight=1),
-                               Label(frame, text='until', font=font2, bg='green').grid(row=0, column=2, padx=0),
-                               date_entry.grid(row=0, column=3, sticky=N + S),
-                               date_picker.Datepicker(date_entry, font=font2, entrywidth=10).pack(fill=BOTH,
-                                                                                                  pady=pady*6),
-                               btn_1.grid(row=0, column=4, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E),
-                               btn_1.config(text='DELETE', width=int(width / 3), bg='red',
-                                            command=lambda: self.combine_funcs(
-                                                [widget.grid_forget() for widget in frame.winfo_children()[2:]],
-                                                frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
-                                                # 'frame'
-                                                [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(1, 5)],
-                                                time_period_frame_setter(frame, entry)))
-                           ))
+            def btn_3_click():
+                date_entry = Frame(frame, bg=frames_colour, height=35, width=120)
+                time_codes[coder].set(2), btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
+                entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
+                [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
+                Grid.columnconfigure(frame, 4, weight=1),
+                Label(frame, text='until', font=font2, bg=lbls_colour).grid(row=0, column=2, padx=0),
+                date_entry.grid(row=0, column=3), date_entry.grid_propagate(False),
+                date_picker.Datepicker(date_entry, datevar=vars_[0], font=font2, entrywidth=10, bg=entries_colour).grid(
+                    row=0, column=0, padx=2),
+                btn_1.grid(row=0, column=4, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E),
+                btn_1.config(text='DELETE', width=int(width / 3), bg='red',
+                             command=lambda: self.combine_funcs(
+                                 [widget.grid_forget() for widget in frame.winfo_children()[2:]],
+                                 frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
+                                 # 'frame'
+                                 [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(1, 5)],
+                                 time_period_frame_setter(frame, entry, coder, *vars_, delete=True)))
 
-            var_ = StringVar()
-            var_.set("week(s)")
-            opt_menu = OptionMenu(frame, var_, "purchase(s)", "hour(s)", "day(s)", "week(s)", "month(s)", "year(s)")
-            opt_menu.config(font=font2, bg='green')
-            opt_menu.nametowidget(opt_menu.menuname).configure(font=font2, bg='green')
+            def btn_4_click():
+                vars_[1].set("week(s)")
+                opt_menu = OptionMenu(frame, vars_[1], "purchase(s)", "hour(s)", "day(s)", "week(s)", "month(s)",
+                                      "year(s)")
+                opt_menu.config(font=font2, bg=entries_colour)
+                opt_menu.nametowidget(opt_menu.menuname).configure(font=font2, bg=entries_colour)
+                time_codes[coder].set(3), btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
+                entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
+                [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
+                Grid.columnconfigure(frame, 5, weight=1),
+                Label(frame, text='for', font=font2, bg=lbls_colour).grid(row=0, column=2),
+                Entry(frame, font=font2, bg=entries_colour, width=int(width / 3), textvariable=vars_[0])\
+                    .grid(row=0, column=3, pady=pady * 3, sticky=N + S),
+                opt_menu.grid(row=0, column=4),
+                btn_1.grid(row=0, column=5, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E),
+                btn_1.config(text='DELETE', width=int(width / 3), bg='red',
+                             command=lambda: self.combine_funcs(
+                                 [widget.grid_forget() for widget in frame.winfo_children()[2:]],
+                                 frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
+                                 # 'frame'
+                                 [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(1, 6)],
+                                 time_period_frame_setter(frame, entry, coder, *vars_, delete=True)))
 
-            btn_4 = Button(frame, text='FOR GIVEN TIME', width=width, wraplength=230, font=font2, bg='green',
-                           command=lambda: self.combine_funcs(
-                               btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
-                               entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
-                               [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
-                               Grid.columnconfigure(frame, 5, weight=1),
-                               Label(frame, text='for', font=font2, bg='green').grid(row=0, column=2),
-                               Entry(frame, font=font2, bg='green', width=int(width / 3)).grid(row=0, column=3),
-                               opt_menu.grid(row=0, column=4),
-                               btn_1.grid(row=0, column=5, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E),
-                               btn_1.config(text='DELETE', width=int(width / 3), bg='red',
-                                            command=lambda: self.combine_funcs(
-                                                [widget.grid_forget() for widget in frame.winfo_children()[2:]],
-                                                frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
-                                                # 'frame'
-                                                [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(1, 6)],
-                                                time_period_frame_setter(frame, entry)))
-                           ))
-
+            btn_1 = Button(frame, text='Add', font=font2, bg=btns_colour, command=lambda: btn_1_click())
             btn_1.grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frame, 1, weight=1)
 
+            btn_2 = Button(frame, text='INDEFINITELY', font=font2, width=width, bg=btns_colour,
+                           command=lambda: btn_2_click())
+
+            btn_3 = Button(frame, text='UNTIL GIVEN DATE', font=font2, width=width, bg=btns_colour,
+                           command=lambda: btn_3_click())
+
+            btn_4 = Button(frame, text='FOR GIVEN TIME', width=width, wraplength=230, font=font2, bg=btns_colour,
+                           command=lambda: btn_4_click())
+
+            if info is not None and not delete:
+                btn_1_click() if time_codes[coder].get() != 0 else None
+                btn_2_click() if time_codes[coder].get() == 1 else btn_3_click() if time_codes[coder].get() == 2 \
+                    else btn_4_click() if time_codes[coder].get() == 3 else None
+
         font1, font2 = ("Calibri", "18", "bold"), ("Calibri", "18")
         ipadx, ipady, padx, pady, width = 10, 8, 20, 5, 18
-        lbl, data, var, i = list(), list(), list(), int()
+        lbl_titles_colour, entries_colour, lbls_colour, btns_colour, frames_colour = 'grey70', 'grey70', 'grey70', \
+                                                                                     'green3', 'grey70'
+        lbl, data, var, time_codes, i = list(), list(), list(), list(), int()
+        [time_codes.append(IntVar()) for _ in range(3)]
+        [var.append(StringVar()) for _ in range(len(self.get_columns(table)[1:-1]) - len(time_codes))]
+
+        if info is not None:
+            i_ = 1
+            for j in range(1, len(var) + len(time_codes) + 1):
+                column_name = self.get_columns(table)[j]
+                if column_name in ['discount_1', 'spending_limit_1', 'sub_zero_allowance_1']:
+                    time_codes[i_ - 1].set(info[j])
+                    i_ += 1
+                else:
+                    if column_name in ['f_name', 'l_name']:
+                        var[j - i_].set(info[j])
+                    elif column_name in ['budget', 'discount_3', 'spending_limit_2', 'sub_zero_allowance_2']:
+                        try:
+                            var[j - i_].set("{:.2f}".format(float(info[j])))
+                        except ValueError:  # in case of empty string (can't float nothing)
+                            var[j - i_].set("{:.2f}".format(float()))
+                    elif column_name == 'discount_2':
+                        var[j - i_].set(info[j] if info[j] in ['£', '%'] else '%')
+                    else:
+                        var[j - i_].set(info[j])
 
         if table == 'accounts':
-            [var.append(StringVar()) for _ in range(len(self.get_columns(table)[1:-1]))]
-
             frames = list()
             for i in range(7):
-                frames.append(Frame(center_frame, bg='blue', height=60, width=400))
+                frames.append(Frame(center_frame, bg=frames_colour, height=60, width=400))
                 frames[i].grid(row=i, column=0, columnspan=2, pady=pady, sticky=E + W)
 
             i += 1
-            Label(frames[0], text='First Name', font=font1, width=width, bg='red') \
+            Label(frames[0], text='First Name', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
-            Entry(frames[0], textvariable=var[0], font=font2, width=width*3, bg='green') \
+            Entry(frames[0], textvariable=var[0], font=font2, width=width*3, bg=entries_colour) \
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[0], 1, weight=1)
 
-            Label(frames[1], text='Last Name', font=font1, width=width, bg='red') \
+            Label(frames[1], text='Last Name', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
-            Entry(frames[1], textvariable=var[1], font=font2, width=width*3, bg='green') \
+            Entry(frames[1], textvariable=var[1], font=font2, width=width*3, bg=entries_colour) \
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[1], 1, weight=1)
 
-            Label(frames[2], text='Budget', font=font1, width=width, bg='red') \
+            def top_up_btn_set():
+                top_up_btn = Button(
+                    frames[2], text='Top Up', font=font2, width=width*2, bg=btns_colour, command=lambda: self.combine_funcs(
+                        top_up_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
+                        top_up_entry.focus(),
+                        top_up_btn.config(command=lambda: self.combine_funcs(
+                            var[2].set("£{:.2f}".format(float(var[2].get()[1:]) + float(budget.get()
+                                                                                        if budget.get() != '' else 0))),
+                            top_up_btn.grid_forget(), top_up_btn_set(), budget.set('')))))
+                top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
+                                sticky=E + W)
+            Label(frames[2], text='Budget', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
-            Label(frames[2], textvariable=var[2], font=font2, width=int(width / 3), bg='green') \
+            var[2].set('£0.00')
+            Label(frames[2], textvariable=var[2], font=font2, width=int(width / 2), bg=lbls_colour, relief=RIDGE) \
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
-            top_up_btn = Button(
-                frames[2], text='Top Up', font=font2, width=width*2, bg='green', command=lambda: self.combine_funcs(
-                    top_up_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
-                    top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
-                    top_up_btn.config(command=lambda: self.combine_funcs(
-                        var[2].set(float(var[2].get() if var[2].get() != '' else 0) +
-                                   float(budget.get() if budget.get() != '' else 0)), budget.set('')))))
-            top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            top_up_btn_set()
             Grid.columnconfigure(frames[2], 2, weight=1)
             budget = StringVar()
-            top_up_entry = Entry(frames[2], textvariable=budget, font=font2, width=int(width / 3), bg='green')
+            top_up_entry = Entry(frames[2], textvariable=budget, font=font2, width=int(width / 2), bg=entries_colour)
 
-            discount_frame = Frame(frames[3], bg='purple')
-            Label(frames[3], text='Discount', font=font1, width=width, bg='red') \
+            discount_frame = Frame(frames[3], bg=frames_colour)
+            Label(frames[3], text='Discount', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
             var[3].set("%")
             opt_menu_1 = OptionMenu(discount_frame, var[3], "%", "£")
-            opt_menu_1.config(font=font2, bg='green')
-            opt_menu_1.nametowidget(opt_menu_1.menuname).configure(font=font2, bg='green')
+            opt_menu_1.config(font=font2, bg=entries_colour)
+            opt_menu_1.nametowidget(opt_menu_1.menuname).configure(font=font2, bg=entries_colour)
             opt_menu_1.grid(row=0, column=0, pady=pady * 2, sticky=N + S)
-            discount_amount = Entry(discount_frame, textvariable=var[4], font=font2, width=int(width / 3), bg='green')
+            discount_amount = Entry(discount_frame, textvariable=var[4], font=font2, width=int(width / 3),
+                                    bg=entries_colour)
             discount_amount.grid(row=0, column=1, pady=pady * 2, sticky=N + S)
             Grid.rowconfigure(discount_frame, 0, weight=1)
-            time_period_frame_setter(frames[3], discount_frame)
+            time_period_frame_setter(frames[3], discount_frame, 0, var[5], var[6])
 
-            spending_limit_frame = Frame(frames[4], bg='purple')
-            Label(frames[4], text='Spending Limit', font=font1, width=width, bg='red') \
+            spending_limit_frame = Frame(frames[4], bg=frames_colour)
+            Label(frames[4], text='Spending Limit', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
             Grid.columnconfigure(spending_limit_frame, 1, weight=1)
-            Label(spending_limit_frame, text='£', font=font2, bg='green') \
+            Label(spending_limit_frame, text='£', font=font2, bg=lbls_colour) \
                 .grid(row=0, column=0, pady=pady * 2, sticky=N + S)
-            Entry(spending_limit_frame, textvariable=var[7], font=font2, width=int(width / 3), bg='green')\
+            Entry(spending_limit_frame, textvariable=var[7], font=font2, width=int(width / 3), bg=entries_colour)\
                 .grid(row=0, column=1, pady=pady * 2, sticky=N + S)
-            Label(spending_limit_frame, text='per', font=font2, width=int(width / 3), bg='green')\
+            Label(spending_limit_frame, text='per', font=font2, bg=lbls_colour)\
                 .grid(row=0, column=2, pady=pady * 2, sticky=N + S)
             var[8].set("purchase")
             opt_menu_3 = OptionMenu(spending_limit_frame, var[8], "purchase", "day", "week", "month")
-            opt_menu_3.config(font=font2, bg='green')
-            opt_menu_3.nametowidget(opt_menu_3.menuname).configure(font=font2, bg='red')
+            opt_menu_3.config(font=font2, bg=entries_colour)
+            opt_menu_3.nametowidget(opt_menu_3.menuname).configure(font=font2, bg=entries_colour)
             opt_menu_3.grid(row=0, column=3, pady=pady * 2, sticky=N + S)
             Grid.rowconfigure(spending_limit_frame, 0, weight=1)
-            time_period_frame_setter(frames[4], spending_limit_frame)
+            time_period_frame_setter(frames[4], spending_limit_frame, 1, var[9], var[10])
 
-            sub_zero_frame = Frame(frames[5], bg='purple')
-            Label(frames[5], text='Sub-Zero Allowance', font=font1, width=width, bg='red') \
+            sub_zero_frame = Frame(frames[5], bg=frames_colour)
+            Label(frames[5], text='Sub-Zero Allowance', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
-            Label(sub_zero_frame, text='£', font=font2, bg='green') \
+            Label(sub_zero_frame, text='£', font=font2, bg=lbls_colour) \
                 .grid(row=0, column=0, pady=pady * 2, sticky=N + S)
-            Entry(sub_zero_frame, textvariable=var[9], font=font2, width=int(width / 3), bg='green') \
+            Entry(sub_zero_frame, textvariable=var[11], font=font2, width=int(width / 3), bg=entries_colour) \
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, pady=pady * 2, sticky=N + S)
             Grid.rowconfigure(sub_zero_frame, 0, weight=1)
-            time_period_frame_setter(frames[5], sub_zero_frame)
+            time_period_frame_setter(frames[5], sub_zero_frame, 2, var[12], var[13])
 
-            Label(frames[6], text='Notes', font=font1, width=width, bg='red') \
+            Label(frames[6], text='Notes', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
-            Entry(frames[6], textvariable=var[10], font=font2, width=int(width / 3), bg='green') \
+            Entry(frames[6], textvariable=var[14], font=font2, width=int(width / 3), bg=entries_colour) \
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[6], 1, weight=1)
+
+        def curr_details():
+            results = list()
+            [results.append(item.get()) for item in var[:3]], results.append(time_codes[0].get()), \
+                [results.append(item.get()) for item in var[3:7]], results.append(time_codes[1].get()), \
+                [results.append(item.get()) for item in var[7:11]], results.append(time_codes[2].get()), \
+                [results.append(item.get()) for item in var[11:]]
+            return results
 
         data_valid = BooleanVar()
         if info is not None:
             def edit():  # for the sake of binding the enter key
                 self.data_deleter(table, self.get_columns(table)[0], info[0])
-                data_valid.set(self.data_appender(table, [item.get() for item in var]))
+                data_valid.set(self.data_appender(table, curr_details()))
                 self.data_appender(table, [item for item in info[1:-1]]) if not data_valid.get() else caller(page_num)
 
             delete_btn = Button(center_frame, text="Delete", font=font1, bg="orange", width=width,
@@ -808,25 +855,10 @@ class TuckProgram:
                               command=lambda: edit())
             edit_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
 
-            for j in range(len(var)):
-                column_name = self.get_columns(table)[j + 1]
-
-                if column_name in ['f_name', 'l_name']:
-                    var[j].set(info[j + 1])
-                elif column_name in ['budget', 'discount_2', 'spending_limit_1', 'sub_zero_allowance']:
-                    try:
-                        var[j].set("£{:.2f}".format(float(info[j + 1])))
-                    except ValueError:  # in case of empty string (can't float nothing)
-                        var[j].set("£{:.2f}".format(float()))
-                elif column_name == 'discount_1':
-                    var[j].set(info[j + 1] if info[j + 1] in ['£', '%'] else '%')
-                else:
-                    var[j].set(info[j + 1])
-
             self.delete.append(info[0])
         else:
             def add():  # for the sake of binding the enter key
-                caller(page_num) if self.data_appender(table, [item.get() for item in var]) else None
+                caller(page_num) if self.data_appender(table, curr_details()) else None
 
             cancel_btn = Button(center_frame, text="Cancel", font=font1, bg="orange", width=width,
                                 command=lambda: caller(page_num))
@@ -835,6 +867,8 @@ class TuckProgram:
             add_btn = Button(center_frame, text="Add", font=font1, bg="orange", width=width,
                              command=lambda: add())
             add_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W + E)
+
+            [time_codes[i].set(0) for i in range(3)]
 
         for i in range(len(self.get_columns(table)[1:-1]) + 1):
             Grid.rowconfigure(center_frame, i, weight=1)
@@ -927,13 +961,14 @@ class TuckProgram:
             column_name = self.get_columns(table)[i + 1]
 
             if column_name in ['f_name', 'l_name']:
+                data[i] = data[i].capitalize()
                 if data[i] == '':
                     code = 1  # missing first / last name
                 for char in data[i]:
                     if not (char.lower() in self.letters or char in self.numbers or char in '_- '):
                         code = 2  # invalid char used in name
 
-            if column_name in ['budget', 'discount_2', 'spending_limit_1', 'sub_zero_allowance']:
+            if column_name in ['budget', 'discount_3', 'spending_limit_2', 'sub_zero_allowance_2']:
                 if str(data[i]).count('.') > 1:
                     code = 3  # multiple decimal places used
                 for symbol in '£$%':  # remove above symbols because numbers are stored without them
@@ -943,15 +978,6 @@ class TuckProgram:
                 for char in data[i]:
                     if not (char in self.numbers or char == '.'):
                         code = 4  # only numbers can be used (and optional single decimal place)
-
-            if data[i] == '':
-                if column_name == 'discount_1':
-                    data[i] = '%'
-                if column_name == 'discount_4':
-                    data[i] = 'week(s)'
-                if column_name == 'spending_limit_2':
-                    data[i] = 'purchase'
-
 
         return code, data
 
