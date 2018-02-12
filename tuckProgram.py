@@ -761,15 +761,24 @@ class TuckProgram:
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[1], 1, weight=1)
 
+            def budget_check():  # checks if budget entered is valid
+                try:
+                    float(budget.get())
+                    return True
+                except ValueError:
+                    return False
+
             def top_up_btn_set():
                 top_up_btn = Button(
-                    frames[2], text='Top Up', font=font2, width=width*2, bg=btns_colour, command=lambda: self.combine_funcs(
+                    frames[2], text='Top Up', font=font2, width=width*2, bg=btns_colour,
+                    command=lambda: self.combine_funcs(
                         top_up_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
                         top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
                         top_up_entry.focus(),
                         top_up_btn.config(command=lambda: self.combine_funcs(
-                            var[2].set("£{:.2f}".format(float(var[2].get()[1:]) + float(budget.get()
-                                                                                        if budget.get() != '' else 0))),
+                            var[2].set("£{:.2f}".format(float(var[2].get()[1:]) + float(budget.get() if budget_check()
+                                                                                        else 0 if budget.get() != ''
+                                                                                        else 0))),
                             top_up_btn.grid_forget(), top_up_btn_set(), budget.set('')))))
                 top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
                                 sticky=E + W)
@@ -884,7 +893,24 @@ class TuckProgram:
     def data_deleter(self, table, column_name, item_id):
         self.cursor.execute("""DELETE FROM {} WHERE {} = ?;""".format(table, column_name), (item_id,))
         self.connection.commit()
-        
+
+    def error_decoder(self, code):
+        if code == 1:
+            return "missing first / last name"
+        elif code == 2:
+            return "invalid character used in name"
+        elif code == 3:
+            return "multiple decimal places used"
+        elif code == 4:
+            return "only numbers can be used (and optional single decimal place) - applies to 'budget', 'discount', " \
+                   "'spending limit' and 'sub zero allowance'"
+        elif code == 5:
+            return "invalid date entered - please use the date helper by simply clicking on the date entry box"
+        elif code == 6:
+            return "date cannot have passed (or be today)"
+        elif code == 7:
+            return "number of weeks entered is not a valid number"
+
     def data_appender(self, table, *args, silence=False):
         # appends given data into database but first checks for validity including if item is duplicate
         items = self.table_reader(table)
@@ -893,10 +919,9 @@ class TuckProgram:
         if code != 0:
             if not silence:
                 tkinter.messagebox.showerror("Data Validity Error",
-                                             "There is a problem with the entered data.\n\nPlease ensure that no symbol"
-                                             "s are used for the name entries and that no symbols nor letters are used "
-                                             "for the budget, daily limit and discount entries.\n\nPlease ensure that A"
-                                             "LL entries are filled in.")
+                                             "There is a problem with the entered data."
+                                             "\n\nError Code: {}\n\nError Msg: {}".format(code,
+                                                                                          self.error_decoder(code)))
             return False
 
         duplicate = False
@@ -956,6 +981,7 @@ class TuckProgram:
             data.append('')
 
         code = 0
+        until_date, for_time = bool(), bool()
 
         for i in range(len(data)):
             column_name = self.get_columns(table)[i + 1]
@@ -978,6 +1004,34 @@ class TuckProgram:
                 for char in data[i]:
                     if not (char in self.numbers or char == '.'):
                         code = 4  # only numbers can be used (and optional single decimal place)
+
+            if column_name in ['discount_1', 'spending_limit_1', 'sub_zero_allowance_1']:  # for locating invalid date
+                # entries but only applies if the date time frame has been chosen
+                if data[i] == 2:
+                    until_date = True
+                if data[i] == 3:
+                    for_time = True
+
+            if column_name in ['discount_4', 'spending_limit_4', 'sub_zero_allowance_3']:
+                if until_date:
+                    until_date = False
+                    if not 10 <= len(data[i]) <= 10:
+                        code = 5  # invalid date
+                        continue
+                    try:
+                        datetime.datetime(int(data[i].split('-')[0]), int(data[i].split('-')[1]),
+                                          int(data[i].split('-')[2]))
+                    except (ValueError, IndexError):
+                        code = 5  # invalid date
+                    if code != 5:
+                        if datetime.datetime(int(data[i].split('-')[0]), int(data[i].split('-')[1]),
+                                             int(data[i].split('-')[2])) < datetime.datetime.now():
+                            code = 6  # date has passed (or is today)
+                if for_time:
+                    try:
+                        data[i] = int(data[i])
+                    except ValueError:
+                        code = 7  # for x time ensures integer is used
 
         return code, data
 
@@ -1053,7 +1107,7 @@ class TuckProgram:
     def table_reader(self, table, *orders):  # loads all items from given table into a dictionary, however, it first
         # files the list down according to any search terms, sorts them alphabetically according to given columns and
         # then returns them.
-        # Function starts by building an SQL search query which must have it's syntax exact and then procedes to execute
+        # Function starts by building an SQL search query which must have it's syntax exact and then proceeds to execute
         # the query
 
         sql_command, search, order_by = """SELECT * FROM {};""".format(table), '', ''
@@ -1075,8 +1129,8 @@ class TuckProgram:
             sql_command += ' WHERE '
 
             for _ in range(search.count(' ') + 1):
-                sql_command += '\"{}\" LIKE ? OR '.format('First Name' if table == 'accounts' else 'Product Name')
-                sql_command = sql_command + '\"Last Name\" LIKE ? OR ' if table == 'accounts' else sql_command
+                sql_command += '\"{}\" LIKE ? OR '.format('f_name' if table == 'accounts' else 'p_name')
+                sql_command = sql_command + '\"l_name\" LIKE ? OR ' if table == 'accounts' else sql_command
             sql_command = sql_command[:-4] + ';'
 
         if order_by != '':

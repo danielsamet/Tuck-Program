@@ -22,15 +22,18 @@ setup - shop - data
 
 Notes:
 I have forgotten specifics in what needs working on with accounts. Main functions have been implemented so I have moved on to products
-Edit the btns for edit/delete and the like by splitting them to simplify them
 Add functionality to adding items so that the 'Enter' key can be used
-Add search functionality where one would type without needing to click a search button and it would narrow down the results
 Create an exporter
 Globalise font details
 enable importing of accounts with minimum of f/l_name and budget and for products with just name and selling price
 Create a user system and encrypt database so it can only be accessed through the program
 Allow editing of budget for user with the right credentials
 Allow extension of data that is time bound (for example extending an offer on an item)
+Allow printing of data
+Add history button in item form to show all changes made to the item
+Optimise program to close database whenever not in use for multiple clients open at once
+For data tab: profit assuming x% of owned quantity is sold (just a thought)
+Alert user when scrolling in item_form if data has been changed
 -------
 use data validation / correction when importing: 
 	do not allow more than one account with the same name;
