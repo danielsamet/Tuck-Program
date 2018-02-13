@@ -50,8 +50,6 @@ class TuckProgram:
         self.delete = []
         self.page_items_height, self.page_items_width = 5, 3
 
-        self.connection = sqlite3.connect("tuck.db")
-        self.cursor = self.connection.cursor()
         self.search = list()
 
         # self.font_1, self.font_2, self.font_3 = ("Calibri", "14", "bold"), ("Calibri", "14", "bold"),
@@ -61,68 +59,136 @@ class TuckProgram:
 
         root.mainloop()
 
+    def db_opener(self, database_name, foreign_keys=True):
+        connection = sqlite3.connect(database_name)
+        cursor = connection.cursor()
+        if foreign_keys:
+            cursor.execute("PRAGMA foreign_keys = 1")
+        return connection, cursor
+
     def db_initialisation(self):
+        connection, cursor = self.db_opener("tuck.db")
+        # cursor.execute("""DROP TABLE employee;""")
         sql_command = list()
         sql_command.append(
             """
             CREATE TABLE accounts (
-            account_no INTEGER PRIMARY KEY,
-            f_name VARCHAR(20) NOT NULL,
-            l_name VARCHAR(30) NOT NULL,
+            account_ID INTEGER PRIMARY KEY,
+            first_name VARCHAR(20) NOT NULL,
+            last_name VARCHAR(30) NOT NULL,
             budget INTEGER NOT NULL,
-            discount_1 INTEGER,
-            discount_2 VARCHAR(1),
-            discount_3 INTEGER,
-            discount_4 VARCHAR(11),
-            discount_5 VARCHAR(11),
-            spending_limit_1 INTEGER,
-            spending_limit_2 INTEGER,
-            spending_limit_3 VARCHAR(9),
-            spending_limit_4 VARCHAR(11),
-            spending_limit_5 VARCHAR(11),
-            sub_zero_allowance_1 INTEGER,
-            sub_zero_allowance_2 INTEGER,
-            sub_zero_allowance_3 VARCHAR(11),
-            sub_zero_allowance_4 VARCHAR(11),
             notes VARCHAR(255),
-            added DATE NOT NULL);
+            date_added DATE NOT NULL);
             """)
-        # extended discounts, spending limit and sub_zero_balance entries are for recording time periods. x_1 is for
-        # type of time period - the rest are for the time period details (spending_limit_2 is the only exception and is
-        # used for the per choice (e.g. per purchase) - ??
+        sql_command.append(
+            """
+            CREATE TABLE accounts_discounts (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID));
+            """)
+        sql_command.append(
+            """
+            CREATE TABLE accounts_spending_limit (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID));
+            """)
+        sql_command.append(
+            """
+            CREATE TABLE accounts_sub_zero_allowance (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID));
+            """)
+        sql_command.append(
+            """
+            CREATE TABLE transactions (
+            Transaction_ID INTEGER PRIMARY KEY,
+            account_ID INTEGER NOT NULL,
+            product_ID INTEGER NOT NULL,
+            transaction_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
+                FOREIGN KEY (product_ID) REFERENCES accounts(product_ID));
+            """)
         sql_command.append(
             """
             CREATE TABLE products (
-            product_no INTEGER PRIMARY KEY,
-            p_name VARCHAR(20) NOT NULL,
+            product_ID INTEGER PRIMARY KEY,
+            product_name VARCHAR(20) NOT NULL,
             cost_price INTEGER,
             selling_price INTEGER NOT NULL,
             quantity INTEGER,
-            discount INTEGER,
-            offer_1 INTEGER,
-            offer_2 INTEGER,
-            offer_3 INTEGER,
-            offer_4 INTEGER,
-            offer_5 VARCHAR(11),
-            purchase_limit_1 INTEGER,
-            purchase_limit_2 VARCHAR(9),
-            sub_zero_allowance INTEGER
             notes VARCHAR(255),
-            added DATE NOT NULL);
+            date_added DATE NOT NULL);
             """)
         sql_command.append(
             """
+            CREATE TABLE products_discount (
+            product_ID INTEGER,
+            amount INTEGER NOT NULL,
+            type VARCHAR(1) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (product_ID) REFERENCES accounts(product_ID));
+            """)
+        sql_command.append(
+            """
+            CREATE TABLE products_offers (
+            product_ID INTEGER,
+            buy_x INTEGER NOT NULL,
+            get_y INTEGER NOT NULL,
+            z_off INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (product_ID) REFERENCES accounts(product_ID));
+            """)
+        sql_command.append(
+            """
+            CREATE TABLE products_purchase_limit (
+            product_ID INTEGER,
+            amount INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (product_ID) REFERENCES accounts(product_ID));
+            """)
+        try:
+            for command in sql_command:
+                cursor.execute(command)
+            connection.commit()
+        except sqlite3.OperationalError:  # tables already exist
+            pass
+        connection.close()
+
+        connection, cursor = self.db_opener("settings.db", foreign_keys=False)
+        sql_command = list()
+        sql_command.append(
+            """
             CREATE TABLE settings (
-            setting_no INTEGER PRIMARY KEY,
+            setting_ID INTEGER PRIMARY KEY,
             setting_name VARCHAR(20),
             setting_val VARCHAR(20));
             """)
         try:
             for command in sql_command:
-                self.cursor.execute(command)
-            self.connection.commit()
+                cursor.execute(command)
+            connection.commit()
         except sqlite3.OperationalError:  # tables already exist
             pass
+        connection.close()
 
     def main_menu(self):  # populates the main_frame with the main menu consisting of 3 buttons: Setup, Shop and Data
         for widget in self.main_frame.winfo_children():
@@ -840,7 +906,7 @@ class TuckProgram:
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[6], 1, weight=1)
 
-        def curr_details():
+        def curr_details():  # returns a list of all variables in order
             results = list()
             [results.append(item.get()) for item in var[:3]], results.append(time_codes[0].get()), \
                 [results.append(item.get()) for item in var[3:7]], results.append(time_codes[1].get()), \
@@ -887,12 +953,17 @@ class TuckProgram:
         Grid.columnconfigure(center_frame, 3, weight=0)
 
     def get_columns(self, table):
-        self.cursor.execute('SELECT * FROM {}'.format(table))
-        return [description[0] for description in self.cursor.description]
+        connection, cursor = self.db_opener("tuck.db")
+        cursor.execute('SELECT * FROM {}'.format(table))
+        columns = [description[0] for description in cursor.description]
+        connection.close()
+        return columns
 
     def data_deleter(self, table, column_name, item_id):
-        self.cursor.execute("""DELETE FROM {} WHERE {} = ?;""".format(table, column_name), (item_id,))
-        self.connection.commit()
+        connection, cursor = self.db_opener("tuck.db")
+        cursor.execute("""DELETE FROM {} WHERE {} = ?;""".format(table, column_name), (item_id,))
+        connection.commit()
+        connection.close()
 
     def error_decoder(self, code):
         if code == 1:
@@ -943,15 +1014,19 @@ class TuckProgram:
             values = list()
             [values.append(val) for val in data], values.append(datetime.datetime.now())
 
-            self.cursor.execute(
-                "INSERT INTO {} VALUES (NULL, {});".format(table, num_of_vals), values)
-            self.connection.commit()
+            connection, cursor = self.db_opener("tuck.db")
+            cursor.execute("INSERT INTO {} VALUES (NULL, {});".format(table, num_of_vals), values)
+            connection.commit()
+            connection.close()
 
         return True
 
     def get_accounts(self):
-        self.cursor.execute("""SELECT * FROM accounts ORDER BY l_name, f_name;""")
-        return self.cursor.fetchall()
+        connection, cursor = self.db_opener("tuck.db")
+        cursor.execute("""SELECT * FROM accounts ORDER BY l_name, f_name;""")
+        accounts = cursor.fetchall()
+        connection.close()
+        return accounts
 
     def csv_reader(self, csv_address, depth=2):  # imports csv and breaks it up into a returned list
         try:
@@ -1109,7 +1184,7 @@ class TuckProgram:
         # then returns them.
         # Function starts by building an SQL search query which must have it's syntax exact and then proceeds to execute
         # the query
-
+        connection, cursor = self.db_opener("tuck.db")
         sql_command, search, order_by = """SELECT * FROM {};""".format(table), '', ''
 
         for char in self.search:
@@ -1119,9 +1194,9 @@ class TuckProgram:
         except IndexError:
             pass
 
-        for arg in orders:
-            if arg is not None:
-                order_by += '\"' + arg + '\", '
+        for order in orders:
+            if order is not None:
+                order_by += '\"' + order + '\", '
         order_by = order_by[:-2]
 
         if search != '':
@@ -1144,11 +1219,14 @@ class TuckProgram:
             # print('sql_command:', sql_command)
             # print('search', search)
 
-            self.cursor.execute(sql_command, search)
+            cursor.execute(sql_command, search)
         else:
-            self.cursor.execute(sql_command)
+            cursor.execute(sql_command)
 
-        return self.cursor.fetchall()
+        table = cursor.fetchall()
+        connection.close()
+
+        return table
 
     def combine_funcs(*funcs):  # this function is used to allow buttons to call multiple functions since they can
         # otherwise only call one; this function is the function called by the button and it can input as the parameters

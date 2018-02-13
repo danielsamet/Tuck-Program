@@ -34,6 +34,10 @@ Add history button in item form to show all changes made to the item
 Optimise program to close database whenever not in use for multiple clients open at once
 For data tab: profit assuming x% of owned quantity is sold (just a thought)
 Alert user when scrolling in item_form if data has been changed
+To maintain referential integrity in the database: accounts and products cannot be deleted rather the respective name field(s) will be set to 'DELETED' with an  \
+    appended number which will be auto-incremented; transactions cannot be deleted rather voided; time bound info relevant to accounts or products (such as product \
+    offers or discounts) cannot be deleted rather only either be voided or just go out of date
+
 -------
 use data validation / correction when importing: 
 	do not allow more than one account with the same name;
