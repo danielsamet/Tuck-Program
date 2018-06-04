@@ -338,7 +338,7 @@ class Calendar(ttk.Frame):
 
 class Datepicker(ttk.Entry):
     def __init__(self, master, font=None, entrywidth=None, entrystyle=None, datevar=None, dateformat="%Y-%m-%d", onselect=None, firstweekday=calendar.MONDAY, locale=None, activebackground='#b1dcfb', activeforeground='black', selectbackground='#003eff', selectforeground='white', borderwidth=1, relief="solid"):
-        
+
         if datevar is not None:
             self.date_var = datevar
         else:
@@ -358,7 +358,10 @@ class Datepicker(ttk.Entry):
         self._is_calendar_visible = False
         self._on_select_date_command = onselect
 
-        self.calendar_frame = Calendar(self.winfo_toplevel(), firstweekday=firstweekday, locale=locale, activebackground=activebackground, activeforeground=activeforeground, selectbackground=selectbackground, selectforeground=selectforeground, command=self._on_selected_date, on_click_month_button=lambda: self.focus())
+        self.calendar_frame = Calendar(self.winfo_toplevel(), firstweekday=firstweekday, locale=locale,
+                                       activebackground=activebackground, activeforeground=activeforeground,
+                                       selectbackground=selectbackground, selectforeground=selectforeground,
+                                       command=self._on_selected_date, on_click_month_button=lambda: self.focus())
 
         self.bind_all("<1>", self._on_click, "+")
 
@@ -413,15 +416,15 @@ class Datepicker(ttk.Entry):
                     self._on_select_date_command(selected_date)
 
             self.hide_calendar()
-      
+
     @property
     def current_text(self):
         return self.date_var.get()
-        
+
     @current_text.setter
     def current_text(self, text):
         return self.date_var.set(text)
-        
+
     @property
     def current_date(self):
         try:
@@ -429,11 +432,11 @@ class Datepicker(ttk.Entry):
             return date
         except ValueError:
             return None
-    
+
     @current_date.setter
     def current_date(self, date):
         self.date_var.set(date.strftime(self.date_format))
-        
+
     @property
     def is_valid_date(self):
         if self.current_date is None:
@@ -458,13 +461,13 @@ class Datepicker(ttk.Entry):
     def hide_calendar(self):
         if self._is_calendar_visible:
             self.calendar_frame.place_forget()
-        
+
         self._is_calendar_visible = False
 
     def erase(self):
         self.hide_calendar()
         self.date_var.set("")
-    
+
     @property
     def is_calendar_visible(self):
         return self._is_calendar_visible
@@ -472,7 +475,7 @@ class Datepicker(ttk.Entry):
     def _on_entry_focus_out(self):
         if not str(self.focus_get()).startswith(str(self.calendar_frame)):
             self.hide_calendar()
-        
+
     def _on_calendar_focus_out(self):
         if self.focus_get() != self:
             self.hide_calendar()
@@ -480,7 +483,7 @@ class Datepicker(ttk.Entry):
     def _on_selected_date(self, date):
         self.date_var.set(date.strftime(self.date_format))
         self.hide_calendar()
-        
+
         if self._on_select_date_command is not None:
             self._on_select_date_command(date)
 
@@ -508,8 +511,20 @@ if __name__ == "__main__":
     
     main = Frame(root, bg='red')
     main.grid(row=0, column=0, padx=20, sticky=E + W)
-    
-    Datepicker(main).grid(row=0, column=0, pady=10, sticky=E + W)
+
+    estyle = ttk.Style()
+    estyle.element_create("plain.field", "from", "clam")
+    estyle.layout("EntryStyle.TEntry",
+                  [('Entry.plain.field',
+                    {'children': [('Entry.background', {'children': [('Entry.padding',
+                                                                      {'children': [('Entry.textarea',
+                                                                                     {'sticky': 'nswe'})],
+                                                                       'sticky': 'nswe'})], 'sticky': 'nswe'})],
+                     'border': '2', 'sticky': 'nswe'})])
+    estyle.configure("EntryStyle.TEntry",
+                     fieldbackground="pink")
+
+    Datepicker(main, entrystyle="EntryStyle.TEntry").grid(row=0, column=0, pady=10, sticky=E + W)
 
     Tkinter.Grid.columnconfigure(root, 0, weight=1)
     Tkinter.Grid.columnconfigure(main, 0, weight=1)

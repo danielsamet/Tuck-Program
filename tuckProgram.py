@@ -1,5 +1,5 @@
 from tkinter import *
-from tkinter import filedialog  # work out why this is greyed out
+from tkinter import filedialog, ttk
 import tkinter.messagebox
 import math
 import sqlite3
@@ -51,6 +51,19 @@ class TuckProgram:
         self.page_items_height, self.page_items_width = 5, 3
 
         self.search = list()
+
+        estyle = ttk.Style()  # style is for the setting of date_picker entry bg
+        estyle.element_create("plain.field", "from", "clam")
+        estyle.layout("EntryStyle.TEntry",
+                      [('Entry.plain.field',
+                        {'children': [('Entry.background', {'children': [('Entry.padding',
+                                                                          {'children': [('Entry.textarea',
+                                                                                         {'sticky': 'nswe'})],
+                                                                           'sticky': 'nswe'})],
+                                                            'sticky': 'nswe'})],
+                         'border': '2', 'sticky': 'nswe'})])
+        estyle.configure("EntryStyle.TEntry",
+                         fieldbackground="grey70")
 
         # self.font_1, self.font_2, self.font_3 = ("Calibri", "14", "bold"), ("Calibri", "14", "bold"),
         # ("Calibri", "14", "bold")
@@ -550,7 +563,7 @@ class TuckProgram:
         import_btn = Button(operation_btn_frame, text='Import', font=("Calibri", "14", "bold"))
         import_btn.grid(row=0, column=0, ipadx=40, ipady=0, pady=20, padx=30, sticky=E + W)
         add_btn = Button(operation_btn_frame, text='Add', font=("Calibri", "14", "bold"),
-                         command=lambda page=page.get(): add_command(0, page, table, caller))
+                         command=lambda page_=page.get(): add_command(0, page_, table, caller))
         add_btn.grid(row=0, column=1, ipadx=40, ipady=0, pady=20, padx=30, sticky=E + W)
         previous_page_btn = Button(operation_btn_frame, text='Previous Page', font=("Calibri", "14", "bold"),
                                    command=lambda: self.combine_funcs(
@@ -721,21 +734,21 @@ class TuckProgram:
                                  time_period_frame_setter(frame, entry, coder, *vars_, delete=True)))
 
             def btn_3_click():
-                date_entry = Frame(frame, bg=frames_colour, height=35, width=120)
+                date_entry = Frame(frame, bg=frames_colour, height=35, width=130)
                 time_codes[coder].set(2), btn_2.destroy(), btn_3.destroy(), btn_4.destroy(),
                 entry.grid(row=0, column=1, padx=(padx, 0), sticky=E),
                 [Grid.columnconfigure(frame, k, weight=0) for k in range(1, 4)],
                 Grid.columnconfigure(frame, 4, weight=1),
                 Label(frame, text='until', font=font2, bg=lbls_colour).grid(row=0, column=2, padx=0),
                 date_entry.grid(row=0, column=3), date_entry.grid_propagate(False),
-                date_picker.Datepicker(date_entry, datevar=vars_[0], font=font2, entrywidth=10, bg=entries_colour).grid(
-                    row=0, column=0, padx=2),
+
+                date_picker.Datepicker(date_entry, datevar=vars_[0], font=font2, entrywidth=10,
+                                       entrystyle="EntryStyle.TEntry").grid(row=0, column=0, padx=2),
                 btn_1.grid(row=0, column=4, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E),
                 btn_1.config(text='DELETE', width=int(width / 3), bg='red',
                              command=lambda: self.combine_funcs(
                                  [widget.grid_forget() for widget in frame.winfo_children()[2:]],
-                                 frame.winfo_children()[0].grid_forget(),  # this is the frame inside of
-                                 # 'frame'
+                                 frame.winfo_children()[0].grid_forget(),  # this is the frame inside of 'frame'
                                  [Grid.columnconfigure(frame, k + 1, weight=0) for k in range(1, 5)],
                                  time_period_frame_setter(frame, entry, coder, *vars_, delete=True)))
 
@@ -915,23 +928,34 @@ class TuckProgram:
             return results
 
         data_valid = BooleanVar()
-        if info is not None:
+        if info is not None:  # edit
             def edit():  # for the sake of binding the enter key
                 self.data_deleter(table, self.get_columns(table)[0], info[0])
                 data_valid.set(self.data_appender(table, curr_details()))
                 self.data_appender(table, [item for item in info[1:-1]]) if not data_valid.get() else caller(page_num)
 
-            delete_btn = Button(center_frame, text="Delete", font=font1, bg="orange", width=width,
+            btn_frame = Frame(center_frame, bg='grey11')
+            btn_frame.grid(row=i, column=0, columnspan=2, sticky=E + W)
+
+            cancel_btn = Button(btn_frame, text="Cancel", font=font1, bg="orange", width=width,
+                                command=lambda: caller(page_num))
+            cancel_btn.grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+
+            save_btn = Button(btn_frame, text="Save", font=font1, bg="orange", width=width,
+                              command=lambda: edit())
+            save_btn.grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+
+            delete_btn = Button(btn_frame, text="Delete", font=font1, bg="red", width=width,
                                 command=lambda: self.combine_funcs(
                                     self.data_deleter(table, self.get_columns(table)[0], info[0]), caller(page_num)))
-            delete_btn.grid(row=i, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            delete_btn.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
 
-            edit_btn = Button(center_frame, text="Edit", font=font1, bg="orange", width=width,
-                              command=lambda: edit())
-            edit_btn.grid(row=i, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(btn_frame, 0, weight=1)
+            Grid.columnconfigure(btn_frame, 1, weight=1)
+            Grid.columnconfigure(btn_frame, 2, weight=1)
 
             self.delete.append(info[0])
-        else:
+        else:  # add
             def add():  # for the sake of binding the enter key
                 caller(page_num) if self.data_appender(table, curr_details()) else None
 
