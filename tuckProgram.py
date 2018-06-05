@@ -698,6 +698,7 @@ class TuckProgram:
         self.unbind()
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: caller(page_num))
 
+        # add scroll buttons if editing
         if action == 0:
             action_ = "Add"
             center_frame.grid(row=0, column=0, sticky=N+S)
@@ -831,28 +832,39 @@ class TuckProgram:
         [var.append(StringVar()) for _ in range(len(self.get_columns(table)[1:-1]) - len(time_codes))]
 
         if info is not None:
-            i_ = 1
-            for j in range(1, len(var) + len(time_codes) + 1):
-                column_name = self.get_columns(table)[j]
-                if column_name in ['discount_1', 'spending_limit_1', 'sub_zero_allowance_1']:
-                    time_codes[i_ - 1].set(info[j])
-                    i_ += 1
-                else:
-                    if column_name in ['f_name', 'l_name']:
-                        var[j - i_].set(info[j])
-                    elif column_name in ['budget', 'discount_3', 'spending_limit_2', 'sub_zero_allowance_2']:
-                        try:
-                            var[j - i_].set("{:.2f}".format(float(info[j])))
-                        except ValueError:  # in case of empty string (can't float nothing)
-                            var[j - i_].set("{:.2f}".format(float()))
-                    elif column_name == 'discount_2':
-                        var[j - i_].set(info[j] if info[j] in ['£', '%'] else '%')
+            if table == "accounts":
+                i_ = 1
+                for j in range(1, len(var) + len(time_codes) + 1):
+                    column_name = self.get_columns(table)[j]
+                    if column_name in ['discount_1', 'spending_limit_1', 'sub_zero_allowance_1']:
+                        time_codes[i_ - 1].set(info[j])
+                        i_ += 1
                     else:
-                        var[j - i_].set(info[j])
+                        if column_name in ['f_name', 'l_name']:
+                            var[j - i_].set(info[j])
+                        elif column_name in ['budget', 'discount_3', 'spending_limit_2', 'sub_zero_allowance_2']:
+                            try:
+                                var[j - i_].set("{:.2f}".format(float(info[j])))
+                            except ValueError:  # in case of empty string (can't float nothing)
+                                var[j - i_].set("{:.2f}".format(float()))
+                        elif column_name == 'discount_2':
+                            var[j - i_].set(info[j] if info[j] in ['£', '%'] else '%')
+                        else:
+                            var[j - i_].set(info[j])
+            else:  # table == "products"
+                pass
 
-        if table == 'accounts':
+        def is_number(string):
+            """checks if str can be converted to float"""
+            try:
+                float(string)
+                return True
+            except ValueError:
+                return False
+
+        if table == 'accounts':  # populate form with relevant fields
             frames = list()
-            for i in range(7):
+            for i in range(7):  # create frames for form fields
                 frames.append(Frame(center_frame, bg=frames_colour, height=60, width=400))
                 frames[i].grid(row=i, column=0, columnspan=2, pady=pady, sticky=E + W)
 
@@ -869,14 +881,8 @@ class TuckProgram:
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[1], 1, weight=1)
 
-            def budget_check():  # checks if budget entered is valid
-                try:
-                    float(budget.get())
-                    return True
-                except ValueError:
-                    return False
-
             def top_up_btn_set():
+                """sets the top up btn"""  # used so that the top up btn can be reset once topped up
                 top_up_btn = Button(
                     frames[2], text='Top Up', font=font2, width=width*2, bg=btns_colour,
                     command=lambda: self.combine_funcs(
@@ -884,12 +890,13 @@ class TuckProgram:
                         top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
                         top_up_entry.focus(),
                         top_up_btn.config(command=lambda: self.combine_funcs(
-                            var[2].set("£{:.2f}".format(float(var[2].get()[1:]) + float(budget.get() if budget_check()
+                            var[2].set("£{:.2f}".format(float(var[2].get()[1:]) + float(budget.get() if is_number(budget.get())
                                                                                         else 0 if budget.get() != ''
                                                                                         else 0))),
                             top_up_btn.grid_forget(), top_up_btn_set(), budget.set('')))))
                 top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
                                 sticky=E + W)
+
             Label(frames[2], text='Budget', font=font1, width=width, bg=lbl_titles_colour) \
                 .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
             var[2].set('£0.00')
@@ -948,6 +955,85 @@ class TuckProgram:
                 .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
             Grid.columnconfigure(frames[6], 1, weight=1)
 
+        else:  # table == "products"
+            frames = list()
+            for i in range(5):  # create frames for form fields
+                frames.append(Frame(center_frame, bg=frames_colour, height=60, width=400))
+                frames[i].grid(row=i, column=0, columnspan=2, pady=pady, sticky=E + W)
+
+            i += 1
+            Label(frames[0], text='Product Name', font=font1, width=width, bg=lbl_titles_colour) \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[0], textvariable=var[0], font=font2, width=width * 3, bg=entries_colour) \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[0], 1, weight=1)
+
+            Label(frames[1], text='Cost Price', font=font1, width=width, bg=lbl_titles_colour) \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            var[1].set('£0.00')
+            Entry(frames[1], textvariable=var[1], font=font2, width=int(width / 2), bg=lbls_colour, relief=RIDGE) \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
+
+            def set_price_btn_set():
+                """sets the set price btn"""  # used so that the set price btn can be reset once set up
+                set_price_btn = Button(
+                    frames[2], text="Set Selling Price" if info is None else "Edit Selling Price", font=font2,
+                    width=width*2, bg=btns_colour,
+                    command=lambda: self.combine_funcs(
+                        set_price_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        set_price_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
+                                           sticky=E + W),
+                        set_price_entry.focus(),
+                        set_price_btn.config(command=lambda: self.combine_funcs(
+                            var[2].set("£{:.2f}".format(float(price.get() if is_number(price.get()) else 0
+                                                        if price.get() != '' else 0))),
+                            set_price_btn.grid_forget(), set_price_btn_set(), price.set('')))))
+                set_price_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
+                                   sticky=E + W)
+
+            def top_up_btn_set():
+                """sets the top up qty btn"""  # used so that the top up btn can be reset once topped up
+                top_up_btn = Button(
+                    frames[3], text='Top Up Qty', font=font2, width=width*2, bg=btns_colour,
+                    command=lambda: self.combine_funcs(
+                        set_qty_entry.grid(row=0, column=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady),
+                        top_up_btn.grid(row=0, column=3, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W),
+                        set_qty_entry.focus(),
+                        top_up_btn.config(command=lambda: self.combine_funcs(
+                            var[3].set("{}".format(
+                                int(var[3].get()) + int(qty.get() if is_number(qty.get()) else 0 if qty.get() != '' else 0))),
+                            top_up_btn.grid_forget(), top_up_btn_set(), qty.set('')))))
+                top_up_btn.grid(row=0, column=2, columnspan=2, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady,
+                                sticky=E + W)
+
+            # !!--------------------- Should warn user if user attempts to save product and has clicked on set_selling_
+            # price but not confirmed amount ---------------------!!
+            Label(frames[2], text='Selling Price', font=font1, width=width, bg=lbl_titles_colour) \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            var[2].set('£0.00')
+            Label(frames[2], textvariable=var[2], font=font2, width=int(width / 2), bg=lbls_colour, relief=RIDGE) \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
+            set_price_btn_set()
+            Grid.columnconfigure(frames[2], 2, weight=1)
+            price = StringVar()
+            set_price_entry = Entry(frames[2], textvariable=price, font=font2, width=int(width / 2), bg=entries_colour)
+
+            Label(frames[3], text='Quantity', font=font1, width=width, bg=lbl_titles_colour) \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            var[3].set('0')
+            Label(frames[3], textvariable=var[3], font=font2, width=int(width / 2), bg=lbls_colour, relief=RIDGE) \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=W)
+            top_up_btn_set()
+            Grid.columnconfigure(frames[3], 2, weight=1)
+            qty = StringVar()
+            set_qty_entry = Entry(frames[3], textvariable=qty, font=font2, width=int(width / 2), bg=entries_colour)
+
+            Label(frames[4], text='Notes', font=font1, width=width, bg=lbl_titles_colour) \
+                .grid(row=0, column=0, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady)
+            Entry(frames[4], textvariable=var[4], font=font2, width=int(width / 3), bg=entries_colour) \
+                .grid(row=0, column=1, ipadx=ipadx, ipady=ipady, padx=padx, pady=pady, sticky=E + W)
+            Grid.columnconfigure(frames[4], 1, weight=1)
+
         def curr_details():  # returns a list of all variables in order
             results = list()
             [results.append(item.get()) for item in var[:3]], results.append(time_codes[0].get()), \
@@ -963,7 +1049,7 @@ class TuckProgram:
                 data_valid.set(self.data_appender(table, curr_details()))
                 self.data_appender(table, [item for item in info[1:-1]]) if not data_valid.get() else caller(page_num)
 
-            btn_frame = Frame(center_frame, bg='grey11')
+            btn_frame = Frame(center_frame, bg='grey70')
             btn_frame.grid(row=i, column=0, columnspan=2, sticky=E + W)
 
             cancel_btn = Button(btn_frame, text="Cancel", font=font1, bg="orange", width=width,
@@ -1294,13 +1380,15 @@ class TuckProgram:
 
         return table
 
-    def combine_funcs(*funcs):  # this function is used to allow buttons to call multiple functions since they can
-        # otherwise only call one; this function is the function called by the button and it can input as the parameters
-        # to this function whichever other functions (and however many)
+    def combine_funcs(*funcs):
+        """enables multiple functions to be called serially inline"""
+
         def combined_func(*args, **kwargs):
             [f(*args, **kwargs) for f in funcs]
 
         return combined_func
 
 
-start = TuckProgram()
+# help(TuckProgram)
+if __name__ == "__main__":
+    start = TuckProgram()
