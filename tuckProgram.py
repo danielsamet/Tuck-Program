@@ -14,8 +14,9 @@ __author__ = 'Daniel Samet'
 
 class TuckProgram:
 
-    def __init__(self):  # initialises the window and creates the top_bar for navigation and main_frame to be
-        # populated by the appropriate function with the relevant page details
+    def __init__(self):
+        """initialises the window and creates the top_bar for navigation and main_frame to be populated by the
+        appropriate functions with the relevant page details"""
         root = Tk()
         root.config(bg='grey11')
         width, height = 1400, 760
@@ -182,7 +183,7 @@ class TuckProgram:
             for command in sql_command:
                 cursor.execute(command)
             connection.commit()
-        except sqlite3.OperationalError:  # tables already exist
+        except sqlite3.OperationalError:  # tables already exist (no need to worry abt one existing and not another)
             pass
         connection.close()
 
@@ -203,17 +204,24 @@ class TuckProgram:
             pass
         connection.close()
 
-    def main_menu(self):  # populates the main_frame with the main menu consisting of 3 buttons: Setup, Shop and Data
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        self.back_btn.config(command=lambda: NONE), self.home_btn.config(command=lambda: NONE)
+    def set_nav_btn_cmds(self, back_btn, home_btn="default"):
+        """sets navigation bar buttons with the given paramters for commands"""
+
+        self.back_btn.config(command=back_btn)
+        self.home_btn.config(command=home_btn if home_btn != "default" else lambda: self.main_menu())
+
+    def main_menu(self):
+        """populates the main_frame with the main menu consisting of 3 buttons: Setup, Shop and Data"""
+
+        [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
+
+        self.set_nav_btn_cmds(lambda: NONE, lambda: NONE)  # must think of better method for home_btn parameter
+
         Grid.rowconfigure(self.main_frame, 0, weight=1)
-        for i in range(1, 6):
-            Grid.rowconfigure(self.main_frame, i, weight=0)  # necessary to reset row configuration when navigating from
-        # other pages to main menu
-        Grid.columnconfigure(self.main_frame, 0, weight=1)
-        Grid.columnconfigure(self.main_frame, 1, weight=1)
+        [Grid.rowconfigure(self.main_frame, i, weight=0) for i in range(1, 6)]  # reset row configuration
+        Grid.columnconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 1, weight=1)
         Grid.columnconfigure(self.main_frame, 2, weight=1)
+
         self.title_var.set("Main Menu")
 
         setup_btn = Button(self.main_frame, text="Setup", font=("Calibri", "32", "bold"), bg='grey60',
@@ -226,19 +234,22 @@ class TuckProgram:
                           command=lambda: self.data())
         data_btn.grid(row=0, column=2, ipadx=120, ipady=60)
 
+        # hot keys
         self.main_frame.bind_all(1, lambda event: self.setup())
         self.main_frame.bind_all(2, lambda event: self.shop())
         self.main_frame.bind_all(3, lambda event: self.data())
 
-    def setup(self):  # populates the main_frame with the two setup options: Accounts and Products
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
+    def setup(self):
+        """populates the main_frame with the two setup options: Accounts and Products"""
+
+        [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
+
+        self.set_nav_btn_cmds(lambda: self.main_menu())
+
         self.title_var.set("Setup")
         self.unbind(title_cut=False)
 
-        Grid.columnconfigure(self.main_frame, 0, weight=1)
-        Grid.columnconfigure(self.main_frame, 1, weight=1)
+        Grid.columnconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 1, weight=1)
         Grid.columnconfigure(self.main_frame, 2, weight=0)
 
         accounts_btn = Button(self.main_frame, text="Accounts", font=("Calibri", "32", "bold"), bg='grey60',
@@ -252,11 +263,14 @@ class TuckProgram:
         self.main_frame.bind_all(2, lambda event: self.products())
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
 
-    def shop(self, page_num=1, user=list()):  # populates the main_frame with the list of accounts for one to be
-        # selected so that a transaction can be made on the chosen account
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
+    def shop(self, page_num=1, user=list()):
+        """populates the main_frame with the list of accounts for one to be selected so that a transaction can be made
+        on the chosen account"""
+
+        [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
+
+        self.set_nav_btn_cmds(lambda: self.main_menu())
+
         self.title_var.set("Shop ({}){}".format(len(self.table_reader('products')), ' - {}'.format(
             ''.join(self.search).upper()) if len(self.search) != 0 else ''))
 
@@ -296,7 +310,7 @@ class TuckProgram:
                                      / (self.page_items_width * self.page_items_height))
         total_user_pages = 1 if total_user_pages == 0 else total_user_pages
 
-        items = self.table_reader('products', self.get_columns('products')[1])
+        products = self.table_reader('products', self.get_columns('products')[1])
 
         details_amount_var, details_total_var = list(), list()
 
@@ -306,27 +320,28 @@ class TuckProgram:
             if len(details_total_var) < len(self.table_reader('products')):
                 details_total_var.append(StringVar()), details_total_var[i].set("£0.00")
 
-        def product_populator():  # page populator specific for the products previewed in the shop page
-            for item in item_frame.grid_slaves():
-                item.destroy()
+        def product_populator():
+            """page populator specific for the products previewed in the shop page"""
+            [item.destroy() for item in item_frame.grid_slaves()]
 
             self.bind(product_populator, page.get())
 
             offset = (page.get() - 1) * self.page_items_width * self.page_items_height
 
-            product_frame, product_lbl, increase_qty, decrease_qty, m = dict(), dict(), dict(), dict(), int()
+            product_frame, product_lbl, increase_qty, decrease_qty = dict(), dict(), dict(), dict()
             product_details1, product_details2, product_details3 = dict(), dict(), dict()
+            m = int()
 
             def qty_changer(no, change):
-                if int(details_amount_var[no].get()[1:]) != items[no][7] or items[no][7] == 0:
+                if int(details_amount_var[no].get()[1:]) != products[no][7] or products[no][7] == 0:
                     details_amount_var[no].set('x{}'.format(int(details_amount_var[no].get()[1:]) + change))
                     details_total_var[no].set('£{:.2f}'.format(int(details_amount_var[no].get()[1:]) *
-                                                               float(items[no][3])))
+                                                               float(products[no][3])))
                     sales_setter(no, int(details_amount_var[no].get()[1:]))
                     details_updater()
                 else:
                     tkinter.messagebox.showinfo("Purchase Limit", "There is a purchase limit for \'{}\' of {}.".format(
-                        items[no][1], items[no][7]))
+                        products[no][1], products[no][7]))
 
             for j in range(self.page_items_height):
                 Grid.rowconfigure(item_frame, j, weight=1)
@@ -334,15 +349,16 @@ class TuckProgram:
                     if j == 0:
                         Grid.columnconfigure(item_frame, k, weight=1)
                     try:
-                        items[m + offset]  # strangest thing ever! lines occur in the item_frame unless the items array
-                        # is referenced with the offset provided.
+                        products[m + offset]  # strangest thing ever! lines occur in the item_frame unless the products
+                        # array is referenced with the offset provided.
                         product_frame[m] = Frame(item_frame, bg='pink', height=100, width=10)
                         product_frame[m].grid(row=j, column=k, padx=10, pady=5, sticky=E + W)
                         product_frame[m].grid_propagate(False)
-                        product_lbl[m] = Label(product_frame[m], text="{}".format(items[m + offset][1]), font=font)
+                        product_lbl[m] = Label(product_frame[m], text="{}".format(products[m + offset][1]), font=font)
                         product_lbl[m].grid(row=0, column=1, columnspan=3, sticky=E + W)
                         product_details1[m] = Label(product_frame[m], text="£{}".format(
-                            "{:.2f}".format(items[m + offset][3])), font=font, width=6)
+                            "{:.2f}".format(products[m + offset][3])), font=font, width=6)  # must input amounts into
+                        # database without £ sign and just format it with it each time it is displayed
                         product_details1[m].grid(row=1, column=1, sticky=E + W)
 
                         product_details2[m] = Label(product_frame[m], textvariable=details_amount_var[m + offset],
@@ -370,7 +386,7 @@ class TuckProgram:
                     m += 1
 
         def sales_setter(product_no, quantity):
-            item = items[product_no]
+            item = products[product_no]
             sales[item[0]] = "{0:}x{1:>6} @£{2:.2f} = £{3:.2f}".format(quantity, item[1], item[3], quantity*item[3])
             if item[5] > 0:
                 total = float(sales[item[0]][sales[item[0]].rfind('£') + 1:])
@@ -385,15 +401,16 @@ class TuckProgram:
             for m in sales.values():
                 listbox.insert(END, m)
 
-        def account_populator():  # page populator specific for the accounts previewed in the shop page
-            for item in item_frame.grid_slaves():
-                item.destroy()
+        def account_populator():
+            """page populator specific for the accounts previewed in the shop page"""
+
+            [item.destroy() for item in item_frame.grid_slaves()]
 
             self.bind(account_populator, page.get())
 
             items = self.table_reader('accounts', self.get_columns('accounts')[2], self.get_columns('accounts')[1])
             offset = (page.get() - 1) * self.page_items_width * self.page_items_height
-            btn, i = dict(), int()
+            btn, m = dict(), int()
 
             for j in range(self.page_items_height):
                 Grid.rowconfigure(item_frame, j, weight=1)
@@ -401,23 +418,25 @@ class TuckProgram:
                     if j == 0:
                         Grid.columnconfigure(item_frame, k, weight=1)
                     try:
-                        btn[i] = Button(item_frame, text="{} {}".format(items[i + offset][1], items[i + offset][2]),
+                        btn[m] = Button(item_frame, text="{} {}".format(items[m + offset][1], items[m + offset][2]),
                                         font=font, width=6, height=2,
-                                        command=lambda item_=items[i + offset]: self.combine_funcs(
+                                        command=lambda item_=items[m + offset]: self.combine_funcs(
                                             [user.pop() for _ in range(7)] if user else None, user.extend(item_),
                                             set_user_details(), details_updater(), page.set(1), self.unbind(),
                                             self.title_var.set("Shop"), user_select.set(False), product_populator()))
-                        btn[i].grid(row=j, column=k, padx=15, pady=5, sticky=E + W)
+                        btn[m].grid(row=j, column=k, padx=15, pady=5, sticky=E + W)
                     except IndexError:
                         break
-                    i += 1
+                    m += 1
 
-        def details_updater():  # updates the relevant details previewed at the bottom of the shop page (e.g. New
-            # Balance)
+        def details_updater():
+            """updates the relevant details previewed at the bottom of the shop page (e.g. New Balance)"""
+
             total = float()
             for individual_total in details_total_var:
                 total += float(individual_total.get()[1:])
             total = round(float(total), 3)
+
             subtotal_var.set("Subtotal: £{:.2f}".format(total))
             user_discount_var.set("User Discount: £{:.2f} ({}%)".format(
                 float(subtotal_var.get()[11:]) * (user[4] / 100), user[4])) if user else None
@@ -455,9 +474,9 @@ class TuckProgram:
                                    if page.get() > 1 else None)
         previous_page_btn.grid(row=0, column=1, rowspan=2, ipadx=15, padx=0)
         purchase_btn = Button(operation_btn_frame, text='Purchase', font=font,
-                              command=lambda: self.combine_funcs(
-                                  self.cursor.execute("UPDATE accounts SET Budget = ? WHERE account_no = ?;",
-                                                      (new_balance_var.get()[14:], user[0])), self.connection.commit(),
+                              command=lambda connection, cursor=self.db_opener("tuck.db"): self.combine_funcs(
+                                  cursor.execute("UPDATE accounts SET Budget = ? WHERE account_no = ?;",
+                                                 (new_balance_var.get()[14:], user[0])), connection.commit(),
                                   self.shop(user=[user[0], user[1], user[2], new_balance_var.get()[14:], user[4],
                                                   user[5], user[6]])) if float(new_balance_var.get()[14:]) > 0
                               else tkinter.messagebox.showerror(
@@ -520,27 +539,30 @@ class TuckProgram:
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
 
     def data(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        self.back_btn.config(command=lambda: self.main_menu()), self.home_btn.config(command=lambda: self.main_menu())
+        """Still In Dev"""
+
+        [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
+
+        self.set_nav_btn_cmds(lambda: self.main_menu())
+
         self.title_var.set("Data")
+
         self.unbind(title_cut=False)
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.main_menu())
 
     def accounts(self, page_num=1):
-        # provides the appropriate data for the setup_window_generator to generate the accounts window (see the
-        # generator itself for functionality)
+        """provides the appropriate data for the setup_window_generator to generate the accounts window (see the
+        generator itself for functionality)"""
 
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        # Grid.columnconfigure(self.main_frame, 1, weight=0)
+        [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
 
         self.setup_window_generator(page_num, 'accounts', self.item_form, self.table_reader, self.accounts)
 
     def setup_window_generator(self, page_num, table, add_command, page_command, caller):
-        # populates the main_frame with items along with buttons to: import new accounts, edit current account
-        # information, add new accounts and delete accounts as well as page interaction (moving between pages)
-        self.back_btn.config(command=lambda: self.setup())
+        """populates the main_frame with items along with buttons to: import new accounts, edit current account
+        information, add new accounts and delete accounts as well as page interaction (moving between pages)"""
+        self.set_nav_btn_cmds(lambda: self.main_menu())
+
         self.title_var.set("{} ({}){}".format(table.capitalize(), len(self.table_reader(table)),
                                               ' - {}'.format(''.join(self.search).upper())
                                               if len(self.search) != 0 else ''))
@@ -610,7 +632,9 @@ class TuckProgram:
         self.bind(caller, page.get())
         self.main_frame.bind_all('<Control-BackSpace>', lambda event: self.setup())
 
-    def bind(self, caller, page):  # this function binds all relevant characters for the sake of name searching
+    def bind(self, caller, page):
+        """binds all relevant characters for the sake of name searching"""
+
         if len(self.search) < 30:  # Until widget size is made more dynamic or is changed permanently buttons in the
             # top_bar will not fit properly if search query is larger than 30 chars
             for letter in self.letters:
@@ -646,6 +670,8 @@ class TuckProgram:
             self.main_frame.unbind_all('<BackSpace>')
 
     def unbind(self, keep_search=False, title_cut=True):
+        """unbinds all keys used for name searching"""
+
         if title_cut:
             self.title_var.set(self.title_var.get()[:self.title_var.get().find('-') - 1])
         for letter in self.letters:
@@ -658,10 +684,11 @@ class TuckProgram:
             self.search = list()
 
     def item_form(self, action, page_num, table, caller, info=None):
-        # creates form for adding (action=0) or editing (action=1) item
+        """creates form for adding (action=0) or editing (action=1) an item"""
 
         [widget.destroy() for widget in self.main_frame.winfo_children()]
-        self.back_btn.config(command=lambda: caller(page_num))
+
+        self.set_nav_btn_cmds(lambda: caller(page_num))
 
         center_frame = Frame(self.main_frame, bg='grey50', width=1200, height=100)
         center_frame.grid_propagate(False)
@@ -708,8 +735,8 @@ class TuckProgram:
 
         self.title_var.set("{} - {}".format(table.capitalize(), action_))
 
-        def time_period_frame_setter(frame, entry, coder, *vars_, delete=False):  # adds necessary buttons, entries and
-            # labels for time bound details such as an offer
+        def time_period_frame_setter(frame, entry, coder, *vars_, delete=False):
+            """adds necessary buttons, entries and labels for time bound details such as an offer"""
 
             def btn_1_click():
                 btn_1.grid_forget(),
@@ -977,6 +1004,7 @@ class TuckProgram:
         Grid.columnconfigure(center_frame, 3, weight=0)
 
     def get_columns(self, table):
+        """returns column names for given table"""
         connection, cursor = self.db_opener("tuck.db")
         cursor.execute('SELECT * FROM {}'.format(table))
         columns = [description[0] for description in cursor.description]
@@ -984,12 +1012,15 @@ class TuckProgram:
         return columns
 
     def data_deleter(self, table, column_name, item_id):
+        """deletes items from database using table name, column name and record value for given column"""
         connection, cursor = self.db_opener("tuck.db")
         cursor.execute("""DELETE FROM {} WHERE {} = ?;""".format(table, column_name), (item_id,))
         connection.commit()
         connection.close()
 
     def error_decoder(self, code):
+        """returns error message for given error code for user"""
+
         if code == 1:
             return "missing first / last name"
         elif code == 2:
@@ -1007,7 +1038,7 @@ class TuckProgram:
             return "number of weeks entered is not a valid number"
 
     def data_appender(self, table, *args, silence=False):
-        # appends given data into database but first checks for validity including if item is duplicate
+        """appends given data into database but first checks for validity including if item is duplicate"""
         items = self.table_reader(table)
         code, data = self.account_data_validator(args[0], table)
 
@@ -1046,13 +1077,16 @@ class TuckProgram:
         return True
 
     def get_accounts(self):
+        """returns all accounts"""
         connection, cursor = self.db_opener("tuck.db")
         cursor.execute("""SELECT * FROM accounts ORDER BY l_name, f_name;""")
         accounts = cursor.fetchall()
         connection.close()
         return accounts
 
-    def csv_reader(self, csv_address, depth=2):  # imports csv and breaks it up into a returned list
+    def csv_reader(self, csv_address, depth=2):
+        """imports csv and breaks it up into a returned list"""
+
         try:
             with open(csv_address, 'r', encoding="UTF-8") as file:
                     file = file.read()
@@ -1060,13 +1094,14 @@ class TuckProgram:
             if depth == 2:
                 for i in range(len(csv)):
                     csv[i] = csv[i].split(',')
-                if csv[-1][0] == '':
-                        csv = csv[:-1]
+                    csv = csv[:-1] if csv[-1][0] == '' else csv
         except FileNotFoundError:
             csv = ''
+
         return csv
 
-    def account_data_validator(self, data, table):  # verifies validity of data; returns the input data
+    def account_data_validator(self, data, table):
+        """verifies validity of data; returns the input data"""
         # (or, if possible, amended input data) as well as a code to identify whether the data is valid or if there is
         # an error (and if so, what that error is)
 
@@ -1134,7 +1169,9 @@ class TuckProgram:
 
         return code, data
 
-    def importer(self, csv_address, table):  # imports data from external csv file to a local csv file
+    def importer(self, csv_address, table):
+        """imports data from external csv file to a local csv file"""
+
         try:  # sort out if user cancels looking for csv address
             csv = self.csv_reader(csv_address)
 
@@ -1171,8 +1208,9 @@ class TuckProgram:
         except TypeError:
             pass
 
-    def page_populator(self, frame, items, page, table, caller):  # populates the given frame with the given items up to
-        # a hardcoded limit for any given page
+    def page_populator(self, frame, items, page, table, caller):
+        """populates the given frame with the given items up to a hardcoded limit for any given page"""
+
         for widget in frame.winfo_children():
             widget.destroy()
 
@@ -1195,19 +1233,21 @@ class TuckProgram:
                     break
                 i += 1
 
-    def products(self, page_num=1):  # provides the appropriate data for the setup_window_generator to generate the
-        # products window (see the generator itself for functionality)
+    def products(self, page_num=1):
+        """provides the appropriate data for the setup_window_generator to generate the products window (see the
+        generator itself for functionality)"""
 
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        [widget.destroy() for widget in self.main_frame.winfo_children()]
 
         self.setup_window_generator(page_num, 'products', self.item_form, self.table_reader, self.products)
 
-    def table_reader(self, table, *orders):  # loads all items from given table into a dictionary, however, it first
-        # files the list down according to any search terms, sorts them alphabetically according to given columns and
-        # then returns them.
+    def table_reader(self, table, *orders):
+        """loads all items from given table into a dictionary using search and sort parameters when provided"""
+        # it first files the list down according to any search terms, sorts them alphabetically according to given
+        # columns and then returns them.
         # Function starts by building an SQL search query which must have it's syntax exact and then proceeds to execute
         # the query
+
         connection, cursor = self.db_opener("tuck.db")
         sql_command, search, order_by = """SELECT * FROM {};""".format(table), '', ''
 
@@ -1256,8 +1296,8 @@ class TuckProgram:
         # otherwise only call one; this function is the function called by the button and it can input as the parameters
         # to this function whichever other functions (and however many)
         def combined_func(*args, **kwargs):
-            for f in funcs:
-                f(*args, **kwargs)
+            [f(*args, **kwargs) for f in funcs]
+
         return combined_func
 
 
