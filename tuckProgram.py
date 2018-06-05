@@ -17,6 +17,7 @@ class TuckProgram:
     def __init__(self):
         """initialises the window and creates the top_bar for navigation and main_frame to be populated by the
         appropriate functions with the relevant page details"""
+
         root = Tk()
         root.config(bg='grey11')
         width, height = 1400, 760
@@ -215,7 +216,7 @@ class TuckProgram:
 
         [widget.destroy() for widget in self.main_frame.winfo_children()]  # reset main_frame
 
-        self.set_nav_btn_cmds(lambda: NONE, lambda: NONE)  # must think of better method for home_btn parameter
+        self.set_nav_btn_cmds(lambda: NONE, "")
 
         Grid.rowconfigure(self.main_frame, 0, weight=1)
         [Grid.rowconfigure(self.main_frame, i, weight=0) for i in range(1, 6)]  # reset row configuration
@@ -561,7 +562,8 @@ class TuckProgram:
     def setup_window_generator(self, page_num, table, add_command, page_command, caller):
         """populates the main_frame with items along with buttons to: import new accounts, edit current account
         information, add new accounts and delete accounts as well as page interaction (moving between pages)"""
-        self.set_nav_btn_cmds(lambda: self.main_menu())
+
+        self.set_nav_btn_cmds(lambda: self.setup())
 
         self.title_var.set("{} ({}){}".format(table.capitalize(), len(self.table_reader(table)),
                                               ' - {}'.format(''.join(self.search).upper())
