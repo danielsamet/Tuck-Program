@@ -1,0 +1,30 @@
+account
+	Attribs:
+		- account_id
+		- f_name
+		- l_name
+		- budget
+		- discount
+		- spending_limit
+		- sub_zero_allowance
+		- notes
+	Methods:
+		- add_account
+		- delete_account
+		- import_accounts
+
+product
+	Attribs:
+		- product_name
+		- cost_price
+		- selling_price
+		- quantity
+		- notes
+	Methods:
+		- add_product
+		- delete_product
+		- import_products
+
+transaction
+	Methods:
+		- record_transaction(account, product)
