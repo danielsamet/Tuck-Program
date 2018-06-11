@@ -1,30 +1,53 @@
-account
+Account:
 	Attribs:
 		- account_id
 		- f_name
 		- l_name
 		- budget
-		- discount
 		- spending_limit
+		- discount [amount, type]
 		- sub_zero_allowance
 		- notes
+		- date_created
 	Methods:
-		- add_account
-		- delete_account
-		- import_accounts
+		- add_account / delete_account / update_account
+		- add_discount / delete_discount
+		- add_spending_limit / delete_spending_limit
+		- add_sub_zero_allowance / delete_sub_zero_allowance
 
-product
+Product:
 	Attribs:
+		- product_id
 		- product_name
 		- cost_price
 		- selling_price
 		- quantity
+		- purchase_limit
+		- discount [amount, type]
+		- offer [buy_x, get_y, z_off]
 		- notes
 	Methods:
-		- add_product
-		- delete_product
-		- import_products
+		- add_product / delete_product / update_product
+		- add_discount / delete_discount
+		- add_purchase_limit / delete_purchase_limit
+		- add_offer / delete_offer
 
-transaction
+Transaction:
 	Methods:
 		- record_transaction(account, product)
+
+ItemFuncs:  # container for functions to be inherited by account and product
+	Methods:
+		- add_item
+		- add_discount
+		- add_limit
+
+GUI:
+	Methods:
+		- get_all_accounts
+		- get_all_products
+		- get_account
+		- get_product
+		[- navigatable menus]
+		- import_accounts
+		- import_products

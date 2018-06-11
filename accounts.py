@@ -1,31 +1,70 @@
+from datetime import datetime
+
+
 class Account:
-    def __init__(self, account):
+    def __init__(self,  f_name, l_name, account_id=None, budget=0, spending_limit=None, discount=None,
+                 sub_zero_allowance=None, notes="", date_created=None):
         """initialises account object with all attributes"""
 
-        if type(account) != "list" and len(account) != 9:
-            raise RuntimeError("Parameter must be a list with 9 items")
+        self.account_id = account_id if account_id is not None else self._get_new_id()
+        self.f_name = f_name
+        self.l_name = l_name
+        self.budget = budget
+        self.spending_limit = spending_limit
+        self.discount = discount
+        self.sub_zero_allowance = sub_zero_allowance
+        self.notes = notes
+        self.date_created = date_created if date_created is not None else datetime.now()
 
-        self.account_id = account[0]
-        self.f_name = account[1]
-        self.l_name = account[2]
-        self.budget = account[3]
-        self.discount = account[4]
-        self.spending_limit = account[5]
-        self.sub_zero_allowance = account[6]
-        self.notes = account[7]
-        self.date_created = account[8]
-
-    def add_account(self, f_name, l_name, budget=0, discount=0, spending_limit=0, sub_zero_allowance=0, notes=""):
-        """adds an account to database"""
+    def add_account(self):
+        """adds account to database"""
 
         pass
 
-    def delete_account(self, account_id):
-        """deletes an account from database using account_id"""
+    def delete_account(self):
+        """deletes account from database using account_id"""
 
         pass
 
-    def import_accounts(self, csv_address):
-        """imports accounts from a given csv address"""
+    def update_account(self):
+        """updates account in database with any new data"""
+        # note: cannot just run the delete and add functions as the database could have related records for the account,
+        # e.g. discounts
 
         pass
+
+    def _get_new_id(self):
+        """gets last used id and adds 1 for a new unique id"""
+
+        pass
+
+    def add_discount(self, amount, type_):
+        """adds discount to database for the account to be applied to all purchases by account"""
+
+        pass
+
+    def delete_discount(self):
+        """deletes discount from database for the account"""
+
+        pass
+
+    def add_spending_limit(self):
+        """adds spending limit to database for the account"""
+
+        pass
+
+    def delete_spending_limit(self):
+        """deletes spending limit from database for the account"""
+
+        pass
+
+    def add_sub_zero_allowance(self):
+        """adds sub-zero allowance to database for the account"""
+
+        pass
+
+    def delete_sub_zero_allowance(self):
+        """deletes sub-zero allowance from database for the account"""
+
+        pass
+
