@@ -2,7 +2,8 @@ from datetime import datetime
 
 
 class Account:
-    """loads a provided account into the object with ability to run the functions below on the object accordingly"""
+    """loads provided account details into the object with ability to run the functions below on the object
+    accordingly"""
 
     def __init__(self,  f_name, l_name, account_id=None, budget=0, spending_limit=None, discount=None,
                  sub_zero_allowance=None, notes="", date_created=None, void=False):
