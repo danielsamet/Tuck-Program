@@ -9,8 +9,10 @@ Account:
 		- sub_zero_allowance
 		- notes
 		- date_created
+		- void  # important for keeping track of related transactions if deleted
 	Methods:
-		- add_account / delete_account / update_account
+		- add_account / delete_account / update_account  # update applies to f_name, l_name and notes
+		- update_budget
 		- add_discount / delete_discount
 		- add_spending_limit / delete_spending_limit
 		- add_sub_zero_allowance / delete_sub_zero_allowance
@@ -19,28 +21,45 @@ Product:
 	Attribs:
 		- product_id
 		- product_name
+		- supplier
 		- cost_price
-		- selling_price
+		- sale_price
 		- quantity
 		- purchase_limit
 		- discount [amount, type]
 		- offer [buy_x, get_y, z_off]
 		- notes
+		- date_created
+		- void  # important for keeping track of related transactions if deleted
 	Methods:
-		- add_product / delete_product / update_product
+		- add_product / delete_product / update_product  # update applies to product_name, supplier and notes
+		- update_cost_price / update_sale_price
 		- add_discount / delete_discount
 		- add_purchase_limit / delete_purchase_limit
 		- add_offer / delete_offer
 
 Transaction:
+    Attribs:
+        - account
+        - product
+        - quantity
+        - date
 	Methods:
-		- record_transaction(account, product)
+		- record_transaction(account, product, quantity)
+        - revert_transaction(account, product, date)  # should mark transaction as void to keep history of it
 
-ItemFuncs:  # container for functions to be inherited by account and product
+ItemFuncs:  # container for common functions to be inherited by account and product
 	Methods:
-		- add_item
-		- add_discount
-		- add_limit
+		- add_item / delete_item / update_item
+		- add_discount / remove_discount
+		- add_limit / remove_limit
+
+Organiser:  # temp class for interacting with database
+    Methods:
+        - create_database
+        - show_database_structure
+        - show_table(table_name)
+        - purge_data
 
 GUI:
 	Methods:
