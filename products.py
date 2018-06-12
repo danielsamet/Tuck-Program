@@ -2,6 +2,9 @@ from datetime import datetime
 
 
 class Product:
+    """loads provided product details into the object with ability to run the functions below on the object
+    accordingly"""
+
     def __init__(self, p_name, product_id=None, supplier="N/A", cost_price=0, sale_price=0, quantity=0,
                  purchase_limit=None, discount=None, offer=None, notes="", date_created=None, void=False):
         """initialises product object with all attributes"""
