@@ -27,12 +27,18 @@ class Account:
     def delete_account(self):
         """deletes account from database using account_id"""
 
+        if self._get_new_id() == self.account_id:
+            raise ValueError("account not in database (thus it cannot be deleted)")
+
         pass
 
     def update_account(self):
         """updates account in database with any new data"""
         # note: cannot just run the delete and add functions as the database could have related records for the account,
         # e.g. discounts
+
+        if self._get_new_id() == self.account_id:
+            raise ValueError("account not in database (thus it cannot be updated)")
 
         pass
 
