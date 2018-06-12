@@ -2,20 +2,22 @@ from datetime import datetime
 
 
 class Product:
-    def __init__(self, p_name, product_id=None, cost=0, price=0, quantity=0, purchase_limit=None, discount=None,
-                 offer=None, notes="", date_created=None):
+    def __init__(self, p_name, product_id=None, supplier="N/A", cost_price=0, sale_price=0, quantity=0,
+                 purchase_limit=None, discount=None, offer=None, notes="", date_created=None, void=False):
         """initialises product object with all attributes"""
 
         self.product_id = product_id if product_id is not None else self._get_new_id()
         self.name = p_name
-        self.cost = cost
-        self.price = price
+        self.supplier = supplier
+        self.cost_price = cost_price
+        self.sale_price = sale_price
         self.quantity = quantity
         self.purchase_limit = purchase_limit
         self.discount = discount
         self.offer = offer
         self.notes = notes
         self.date_created = date_created if date_created is not None else datetime.now()
+        self.void = void
 
     def add_product(self):
         """adds product to database"""
@@ -30,11 +32,6 @@ class Product:
 
         pass
 
-    def _get_new_id(self):
-        """gets last used id and adds 1 for a new unique id"""
-
-        pass
-
     def update_product(self):
         """updates product in database with any new data"""
         # note: cannot just run the delete and add functions as the database could have related records for the product,
@@ -42,6 +39,21 @@ class Product:
 
         if self._get_new_id() == self.product_id:
             raise ValueError("product not in database (thus it cannot be updated)")
+
+        pass
+
+    def _get_new_id(self):
+        """gets last used id and adds 1 for a new unique id"""
+
+        pass
+
+    def update_cost_price(self):
+        """updates cost of product in database"""
+
+        pass
+
+    def update_sale_price(self):
+        """updates price of product in database"""
 
         pass
 
