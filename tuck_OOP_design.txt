@@ -44,6 +44,7 @@ Transaction:
         - product
         - quantity
         - date
+        - void
 	Methods:
 		- record_transaction(account, product, quantity)
         - revert_transaction(account, product, date)  # should mark transaction as void to keep history of it
