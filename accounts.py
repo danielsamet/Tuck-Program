@@ -70,15 +70,32 @@ class Account:
         self.balance += amount
         self.update_account()
 
-    def add_discount(self, amount, type_):
-        """adds new discount to database for the account to be applied to all purchases by account"""
+    def add_discount(self, amount, type_, start_date, end_date, void=False):
+        """adds new discount to database for the account to be applied to all purchases by account; returns false if
+        discount already exists and not void"""
 
-        self._db_execute("INSERT INTO accounts_discount VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_, ))
+        discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND "
+                                    "start_date = {2} AND end_date = {3}".format(self.account_id, amount, start_date,
+                                                                                 end_date))
 
-    def delete_discount(self):
+        if len(discount) == 1:
+            if void and not discount[-1]:  # if updating void status
+                self._db_execute("UPDATE accounts_discounts SET void=TRUE WHERE account_id={0} AND amount={1} AND "
+                                 "start_date={2} AND end_date={3}".format(self.account_id, amount, start_date,
+                                                                          end_date))
+            else:
+                return False
+
+        self._db_execute("INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
+                                                                                      start_date, end_date, void))
+
+        return True
+
+    def delete_discount(self, amount, start_date, end_date):
         """deletes discount from database for the account"""
 
-        pass
+        self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id={0} AND amount={1} AND "
+                         "start_date={2} AND end_date={3}".format(self.account_id, amount, start_date, end_date))
 
     def add_spending_limit(self):
         """adds spending limit to database for the account"""
