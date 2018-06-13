@@ -35,7 +35,8 @@ class Account:
         """adds account to database with only name parameters"""
 
         if self.account_id is not None:
-            raise ValueError("account cannot have an id to be inserted (new accounts will auto-generate ids)")
+            raise ValueError("cannot add an account that already exists! (note: new accounts will be auto-assigned an "
+                             "account_ID)")
 
         self._db_execute("INSERT INTO accounts VALUES (NULL, ?, ?, ?, ?, ?, ?)",
                          (f_name, l_name, notes, 0, datetime.now(), 0))
@@ -45,8 +46,8 @@ class Account:
     def delete_account(self):
         """deletes account from database using account_id"""
 
-        if self.account_id is None:
-            raise ValueError("account not in database (thus it cannot be deleted)")
+        self._check_account_is_valid("(so you expect me to delete the account how exactly?)")
+
         # self._db_execute("DELETE FROM accounts WHERE account_ID = {0}".format(self.account_id))
 
         self.void = True
@@ -57,14 +58,19 @@ class Account:
         # note: cannot just run the delete and add functions as the database could have related records for the account,
         # e.g. discounts
 
-        if self.account_id is None:
-            raise ValueError("account not in database (thus it cannot be updated)")
+        self._check_account_is_valid("(so you expect me to update the account how exactly?)")
 
         self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", notes=\"{2}\", void=\"{3}\" WHERE "
                          "account_id={4}".format(self.f_name, self.l_name, self.notes, self.void, self.account_id))
 
     def update_balance(self, amount):
         """updates balance in database"""
+
+        self._check_account_is_valid("(so you expect me to update the account account balance how exactly?)")
+        try:
+            amount = float(amount)
+        except ValueError:
+            raise ValueError("the amount parameter kinda needs to be a real float")
 
         self._db_execute("INSERT INTO accounts_top_ups VALUES (?, ?, ?)", (self.account_id, amount, datetime.now()))
         self.balance += amount
@@ -73,6 +79,8 @@ class Account:
     def add_discount(self, amount, type_, start_date, end_date, void=False):
         """adds new discount to database for the account to be applied to all purchases by account; returns false if
         discount already exists and not void"""
+
+        self._check_account_is_valid("(so you expect me to add a discount how exactly?)")
 
         discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND "
                                     "start_date = {2} AND end_date = {3}".format(self.account_id, amount, start_date,
@@ -93,6 +101,8 @@ class Account:
 
     def delete_discount(self, amount, start_date, end_date):
         """deletes discount from database for the account"""
+
+        self._check_account_is_valid("(so you expect me to delete the discount how exactly?)")
 
         self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id={0} AND amount={1} AND "
                          "start_date={2} AND end_date={3}".format(self.account_id, amount, start_date, end_date))
@@ -139,9 +149,19 @@ class Account:
 
         return results
 
+    def _check_account_is_valid(self, msg):
+        """internal use only - checks account_id both exists and is in database"""
+
+        if self.account_id is None:
+            raise ValueError("account_id is not currently set {0}".format(msg))
+        else:
+            if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 1:
+                raise ValueError("account_id not in database {0}".format(msg))
+
 
 if __name__ == "__main__":
-    # couch = Account()
-    # couch.add_account("Couch", "Master")
-    couch = Account(1)
-    # couch.delete_account()
+    couch = Account()
+    couch.add_account("Couch", "Master")
+    # couch = Account(1)
+    # couch.add_account("", "")
+    couch.delete_account()

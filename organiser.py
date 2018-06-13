@@ -51,7 +51,8 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE NOT NULL,
                 void INTEGER(1) NOT NULL,
-                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
+                    PRIMARY KEY (account_ID, amount, start_date, end_date)
             );
             
             """)
@@ -206,7 +207,7 @@ class Organiser:
 
 
 if __name__ == "__main__":
-    # Organiser().create_database()
+    Organiser().create_database()
     # Organiser().show_database_structure()
     Organiser().show_table("accounts")
     # Organiser().purge_data()
