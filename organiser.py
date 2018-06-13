@@ -22,18 +22,19 @@ class Organiser:
                 account_ID INTEGER PRIMARY KEY,
                 first_name VARCHAR(20) NOT NULL,
                 last_name VARCHAR(30) NOT NULL,
+                balance INTEGER NOT NULL,
                 notes VARCHAR(255),
                 date_added DATE NOT NULL,
-                void INTEGER NOT NULL
+                void INTEGER(1) NOT NULL
             );
             
             """)
         sql_command.append(
             """
             
-            CREATE TABLE accounts_budget (
+            CREATE TABLE accounts_top_ups (
                 account_ID INTEGER,
-                budget INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
                 date_topped_up DATE NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
@@ -46,9 +47,10 @@ class Organiser:
             CREATE TABLE accounts_discounts (
                 account_ID INTEGER,
                 amount INTEGER NOT NULL,
+                type INTEGER(1) NOT NULL,
                 start_date DATE NOT NULL,
                 end_date DATE NOT NULL,
-                void INTEGER NOT NULL,
+                void INTEGER(1) NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
             
@@ -192,17 +194,19 @@ class Organiser:
         """purge database of all data leaving just table structure"""
 
         connection, cursor = self.db_opener("tuck.db")
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [item[0] for item in cursor.fetchall()]
-        [cursor.execute("DELETE FROM {}".format(table)) for table in tables]
+        [cursor.execute("DROP TABLE {}".format(table)) for table in tables]
         connection.commit()
 
         cursor.close(), connection.close()
 
+        self.create_database()
+
 
 if __name__ == "__main__":
-    Organiser().create_database()
+    # Organiser().create_database()
     # Organiser().show_database_structure()
-    # Organiser().show_table("accounts")
+    Organiser().show_table("accounts")
     # Organiser().purge_data()
