@@ -3,7 +3,7 @@ Account:
 		- account_id
 		- f_name
 		- l_name
-		- budget
+		- balance
 		- spending_limit
 		- discount [amount, type]
 		- sub_zero_allowance
