@@ -8,8 +8,7 @@ class Account:
 
     def __init__(self, account_id=None):
         """initialises account object with all attributes"""
-        # f_name, l_name, account_id=None, balance=0, spending_limit=None, discount=None,
-        #                  sub_zero_allowance=None, notes="", date_created=None, void=False
+
         if account_id is not None:
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
             discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
@@ -125,7 +124,7 @@ class Account:
 
 
 if __name__ == "__main__":
-    # daniel = Account()
-    # daniel.add_account("Couch", "Master")
-    daniel = Account(1)
-    # daniel.delete_account()
+    # couch = Account()
+    # couch.add_account("Couch", "Master")
+    couch = Account(1)
+    # couch.delete_account()
