@@ -10,6 +10,9 @@ class Account:
         """initialises account object with all attributes"""
 
         if account_id is not None:
+            self.account_id = account_id
+            self._check_account_is_valid("(so you expect me to load this account how exactly?)")
+
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
             discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
             spending_limit = \
@@ -23,7 +26,10 @@ class Account:
         self.account_id = account_id
         self.f_name = account[1]
         self.l_name = account[2]
-        self.balance = account[3]
+        try:
+            self.balance = float(account[3])
+        except ValueError:
+            self.balance = float()
         self.discount = discount
         self.spending_limit = spending_limit
         self.sub_zero_allowance = sub_zero_allowance
@@ -35,13 +41,14 @@ class Account:
         """adds account to database with only name parameters"""
 
         if self.account_id is not None:
-            raise ValueError("cannot add an account that already exists! (note: new accounts will be auto-assigned an "
-                             "account_ID)")
+            raise ValueError("cannot add an account that already exists! (if account is new then ensure to leave "
+                             "account_id empty else if account is simply void then just update the void attrib and run"
+                             " update_account)")
 
         self._db_execute("INSERT INTO accounts VALUES (NULL, ?, ?, ?, ?, ?, ?)",
                          (f_name, l_name, notes, 0, datetime.now(), 0))
 
-        self.f_name, self.l_name, self.notes = f_name, l_name, notes
+        self.account_id, self.f_name, self.l_name, self.notes = self._get_last_id("accounts"), f_name, l_name, notes
 
     def delete_account(self):
         """deletes account from database using account_id"""
@@ -60,8 +67,9 @@ class Account:
 
         self._check_account_is_valid("(so you expect me to update the account how exactly?)")
 
-        self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", notes=\"{2}\", void=\"{3}\" WHERE "
-                         "account_id={4}".format(self.f_name, self.l_name, self.notes, self.void, self.account_id))
+        self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", balance=\"{2}\", notes=\"{3}\", "
+                         "void=\"{4}\" WHERE account_id={5}".format(self.f_name, self.l_name, self.balance, self.notes,
+                                                                    self.void, self.account_id))
 
     def update_balance(self, amount):
         """updates balance in database"""
@@ -80,17 +88,21 @@ class Account:
         """adds new discount to database for the account to be applied to all purchases by account; returns false if
         discount already exists and not void"""
 
+        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):  # ensure datetime object is used
+            raise ValueError("dates must be passed as datetime.datetime objects")
+        start_date, end_date = start_date.replace(microsecond=0), end_date.replace(microsecond=0)
+
         self._check_account_is_valid("(so you expect me to add a discount how exactly?)")
 
         discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND "
-                                    "start_date = {2} AND end_date = {3}".format(self.account_id, amount, start_date,
-                                                                                 end_date))
+                                    "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount,
+                                                                                         start_date, end_date))
 
         if len(discount) == 1:
             if void and not discount[-1]:  # if updating void status
                 self._db_execute("UPDATE accounts_discounts SET void=TRUE WHERE account_id={0} AND amount={1} AND "
-                                 "start_date={2} AND end_date={3}".format(self.account_id, amount, start_date,
-                                                                          end_date))
+                                 "start_date=\"{2}\" AND end_date=\"{3}\"".format(self.account_id, amount, start_date,
+                                                                                  end_date))
             else:
                 return False
 
@@ -104,18 +116,42 @@ class Account:
 
         self._check_account_is_valid("(so you expect me to delete the discount how exactly?)")
 
-        self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id={0} AND amount={1} AND "
-                         "start_date={2} AND end_date={3}".format(self.account_id, amount, start_date, end_date))
+        self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id = {0} AND amount = {1} AND "
+                         "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
+                                                                              end_date))
 
-    def add_spending_limit(self):
+    def add_spending_limit(self, amount, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        pass
+        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):  # ensure datetime object is used
+            raise ValueError("dates must be passed as datetime.datetime objects")
+        start_date, end_date = start_date.replace(microsecond=0), end_date.replace(microsecond=0)
 
-    def delete_spending_limit(self):
+        self._check_account_is_valid("(so you expect me to add a spending limit how exactly?)")
+
+        spending_limit = self._db_execute("SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND "
+                                          "amount = {1} AND start_date = \"{2}\" AND end_date = \"{3}\""
+                                          "".format(self.account_id, amount, start_date, end_date))
+
+        if len(spending_limit) == 1:
+            if void and not spending_limit[-1]:  # if updating void status
+                self._db_execute("UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND "
+                                 "amount = \"{1}\" AND start_date = \"{2}\" AND end_date = \"{3}\""
+                                 "".format(self.account_id, amount, start_date, end_date))
+            else:
+                return False
+
+        self._db_execute("INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?)", (self.account_id, amount,
+                                                                                        start_date, end_date, void))
+
+    def delete_spending_limit(self, amount, start_date, end_date):
         """deletes spending limit from database for the account"""
 
-        pass
+        self._check_account_is_valid("(so you expect me to delete the spending limit how exactly?)")
+
+        self._db_execute("UPDATE accounts_spending_limit SET void = FALSE WHERE account_id = {0} AND amount = {1} AND "
+                         "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
+                                                                              end_date))
 
     def add_sub_zero_allowance(self):
         """adds sub-zero allowance to database for the account"""
@@ -127,7 +163,7 @@ class Account:
 
         pass
 
-    def _db_opener(self, database_name, foreign_keys=True):
+    def _db_open(self, database_name, foreign_keys=True):
         """internal use only - opens connections to database"""
 
         connection = sqlite3.connect(database_name)
@@ -139,7 +175,9 @@ class Account:
     def _db_execute(self, sql_command, *parameters):
         """internal use only - executes commands on database and returns results"""
 
-        connection, cursor = self._db_opener("tuck.db")
+        print(sql_command)
+
+        connection, cursor = self._db_open("tuck.db")
 
         cursor.execute(sql_command, *parameters)
         connection.commit()
@@ -149,19 +187,31 @@ class Account:
 
         return results
 
-    def _check_account_is_valid(self, msg):
+    def _check_account_is_valid(self, msg, ):
         """internal use only - checks account_id both exists and is in database"""
 
         if self.account_id is None:
             raise ValueError("account_id is not currently set {0}".format(msg))
         else:
-            if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 1:
+            if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 0:
                 raise ValueError("account_id not in database {0}".format(msg))
+
+    def _get_last_id(self, table):
+        """internal use only - returns the last id used in database"""
+
+        ids = self._db_execute("SELECT account_id FROM {0}".format(table))
+
+        return ids[-1][0]
 
 
 if __name__ == "__main__":
     couch = Account()
     couch.add_account("Couch", "Master")
     # couch = Account(1)
+    couch.notes = "Hello, happy testing!"
+    couch.update_account()
+    couch.update_balance(100)
+    couch.add_discount(100, 1, datetime.now(), datetime.now())
+    couch.add_spending_limit(20, datetime.now(), datetime.now())
     # couch.add_account("", "")
-    couch.delete_account()
+    # couch.delete_account()
