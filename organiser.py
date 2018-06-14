@@ -65,7 +65,7 @@ class Organiser:
                 amount INTEGER NOT NULL,
                 type INTEGER(1) NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER(1) NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
                     PRIMARY KEY (account_ID, amount, start_date, end_date)
@@ -78,8 +78,9 @@ class Organiser:
             CREATE TABLE accounts_spending_limit (
                 account_ID INTEGER,
                 amount INTEGER NOT NULL,
+                per VARCHAR(10) NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
@@ -92,7 +93,7 @@ class Organiser:
                 account_ID INTEGER,
                 amount INTEGER NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
@@ -136,7 +137,7 @@ class Organiser:
                 product_ID INTEGER,
                 amount INTEGER NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
             );
@@ -150,7 +151,7 @@ class Organiser:
                 amount INTEGER NOT NULL,
                 type VARCHAR(1) NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
             );
@@ -165,7 +166,7 @@ class Organiser:
                 get_y INTEGER NOT NULL,
                 z_off INTEGER NOT NULL,
                 start_date DATE NOT NULL,
-                end_date DATE NOT NULL,
+                end_date DATE,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
             );
@@ -212,16 +213,16 @@ class Organiser:
 
         tables = [item[0] for item in self._db_execute("SELECT name FROM sqlite_master WHERE type='table';")]
 
-        temp = int()
-        while temp < len(tables):
+        deleted = int()
+        while deleted < len(tables):
             for table in tables:
                 try:
                     try:
                         self._db_execute("DROP TABLE {}".format(table))
-                        temp += 1
+                        deleted += 1
                     except sqlite3.OperationalError:  # table has already been dropped
                         continue
-                except sqlite3.IntegrityError:
+                except sqlite3.IntegrityError:  # there are related records which must be deleted first
                     time.sleep(0.01)
 
         self.create_database()
