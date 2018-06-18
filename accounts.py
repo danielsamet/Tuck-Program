@@ -89,7 +89,8 @@ class Account:
 
         missing_account_msg = "(so you expect me to add a discount how exactly?)"
         start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
-        # -- CHECK TYPE VALIDITY -- #
+        if not isinstance(type_, int):
+            raise ValueError("type_ parameter must be an int object")
 
         get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND start_date = " \
                        "\"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date, end_date)
@@ -116,7 +117,10 @@ class Account:
 
         missing_account_msg = "(so you expect me to add a spending limit how exactly?)"
         start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
-        # -- CHECK PER VALIDITY -- #
+        if not isinstance(per, str):
+            raise ValueError("per parameter must be an str object")
+        elif per not in ['day', 'week', 'month', 'year']:
+            raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
 
         get_accounts = "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = " \
                        "\"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per,
