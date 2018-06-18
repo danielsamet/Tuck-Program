@@ -11,7 +11,9 @@ class Account(Inherit):
 
         if account_id is not None:
             self.account_id = account_id
-            self._check_account_is_valid("(so you expect me to load this account how exactly?)")
+
+            if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
+                raise ValueError("Account is either set to None or does not exist in database")
 
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
             discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
@@ -20,7 +22,7 @@ class Account(Inherit):
             sub_zero_allowance = \
                 self._db_execute("SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id))
         else:
-            account = [int(), "", "", 0, "", datetime.now(), False]
+            account = [int(), str(), str(), int(), str(), datetime.now(), False]
             discount, spending_limit, sub_zero_allowance = None, None, None
 
         self.account_id = account_id
@@ -53,7 +55,8 @@ class Account(Inherit):
     def delete_account(self):
         """deletes account from database using account_id"""
 
-        self._check_account_is_valid("(so you expect me to delete the account how exactly?)")
+        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
+            raise ValueError("Account is either set to None or does not exist in database")
 
         # self._db_execute("DELETE FROM accounts WHERE account_ID = {0}".format(self.account_id))
 
@@ -65,7 +68,8 @@ class Account(Inherit):
         # note: cannot just run the delete and add functions as the database could have related records for the account,
         # e.g. discounts
 
-        self._check_account_is_valid("(so you expect me to update the account how exactly?)")
+        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
+            raise ValueError("Account is either set to None or does not exist in database")
 
         self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", balance=\"{2}\", notes=\"{3}\", "
                          "void={4} WHERE account_id={5}".format(self.f_name, self.l_name, self.balance, self.notes,
@@ -74,7 +78,9 @@ class Account(Inherit):
     def update_balance(self, amount):
         """updates balance in database"""
 
-        self._check_account_is_valid("(so you expect me to update the account account balance how exactly?)")
+        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
+            raise ValueError("Account is either set to None or does not exist in database")
+
         try:
             amount = float(amount)
         except ValueError:
@@ -88,7 +94,7 @@ class Account(Inherit):
     def add_discount(self, amount, type_, start_date, end_date, void=False):
         """adds new discount to database for the account to be applied to all purchases by account"""
 
-        self._discount_validity("add", amount, type_, start_date, end_date, void)
+        self._discount_validity(amount, type_, start_date, end_date, void)
 
         get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND type = {2} AND " \
                        "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_, start_date,
@@ -104,16 +110,15 @@ class Account(Inherit):
     def delete_discount(self, amount, type_, start_date, end_date):
         """deletes discount from database for the account"""
 
-        self._discount_validity("delete", amount, type_, start_date, end_date)
+        self._discount_validity(amount, type_, start_date, end_date)
 
         self._run_condition_delete_commands("accounts_discounts", amount=amount, type=type_,
                                             start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
-    def _discount_validity(self, caller, amount, type_, start_date, end_date, void=None):
+    def _discount_validity(self, amount, type_, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
 
-        missing_account_msg = "(so you expect me to {0} a discount how exactly?)".format(caller)
-        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
         if not isinstance(type_, int):
             raise ValueError("type_ parameter must be an int object")
 
@@ -122,7 +127,7 @@ class Account(Inherit):
     def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        start_date, end_date = self._spending_limit_validity("add", amount, per, start_date, end_date, void)
+        start_date, end_date = self._spending_limit_validity(amount, per, start_date, end_date, void)
 
         get_accounts_cmd = \
             "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = \"{2}\" AND " \
@@ -140,17 +145,15 @@ class Account(Inherit):
     def delete_spending_limit(self, amount, per, start_date, end_date):
         """deletes spending limit from database for the account"""
 
-        start_date, end_date = self._spending_limit_validity("delete", amount, per, start_date, end_date)
+        start_date, end_date = self._spending_limit_validity(amount, per, start_date, end_date)
 
         self._run_condition_delete_commands("accounts_spending_limit", amount=amount, per="{0}".format(per),
                                             start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
-    def _spending_limit_validity(self, caller, amount, per, start_date, end_date, void=None):
+    def _spending_limit_validity(self, amount, per, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
 
-        missing_account_msg = "(so you expect me to {0} a spending limit how exactly?)".format(caller)  # formats
-        # message for either adding or deleting
-        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
         if not isinstance(per, str):
             raise ValueError("per parameter must be an str object")
         elif per not in ['day', 'week', 'month', 'year']:
@@ -161,7 +164,7 @@ class Account(Inherit):
     def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
 
-        start_date, end_date = self._sub_zero_allowance_validity("add", amount, start_date, end_date, void)
+        start_date, end_date = self._sub_zero_allowance_validity(amount, start_date, end_date, void)
 
         get_accounts = "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND " \
                        "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
@@ -178,28 +181,26 @@ class Account(Inherit):
     def delete_sub_zero_allowance(self, amount, start_date, end_date):
         """deletes sub-zero allowance from database for the account"""
 
-        start_date, end_date = self._sub_zero_allowance_validity("add", amount, start_date, end_date)
+        start_date, end_date = self._sub_zero_allowance_validity(amount, start_date, end_date)
 
         self._run_condition_delete_commands("accounts_sub_zero_allowance", amount=amount,
                                             start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
-    def _sub_zero_allowance_validity(self, caller, amount, start_date, end_date, void=None):
+    def _sub_zero_allowance_validity(self, amount, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
 
-        missing_account_msg = "(so you expect me to {0} a sub zero allowance how exactly?)".format(caller)  # formats
-        # message for either adding or deleting
-        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
 
         return start_date, end_date
 
-    def _check_account_is_valid(self, msg):
-        """internal use only - checks account_id both exists and is in database"""
+    def _check_item_exists(self, cmd, account_check=True):
+        """internal use only - overriding parent class to include a check for account_id being None None"""
 
-        if self.account_id is None:
-            raise ValueError("account_id is not currently set {0}".format(msg))
-        else:
-            if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 0:
-                raise ValueError("account_id not in database {0}".format(msg))
+        if account_check:
+            if self.account_id is None:
+                return False
+
+        return super()._check_item_exists(cmd)
 
     def _get_last_id(self, table):
         """internal use only - returns the last id used in database"""
@@ -208,11 +209,12 @@ class Account(Inherit):
 
         return ids[-1][0]
 
-    def _check_param_validity(self, missing_account_msg, amount, start_date, end_date, void=None):
+    def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - checks parameters are instances of the correct objects and returns formatted start and
         end dates"""
 
-        self._check_account_is_valid(missing_account_msg)
+        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
+            raise ValueError("Account is either set to None or does not exist in database")
 
         # check parameter validity
         if not isinstance(amount, int):
@@ -225,13 +227,12 @@ class Account(Inherit):
 
         return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
 
-    def _run_condition_insert_commands(self, get_accounts, void, update_void, add_new, caller):
+    def _run_condition_insert_commands(self, get_items, void, update_void, add_new, caller):
         """internal use only - runs insert commands for time-bound item conditions (e.g. adding discount)"""
 
-        discount = self._db_execute(get_accounts)
-        if len(discount) == 1:
-            if not void and discount[0][-1] == 1:  # if updating void status
-                print(1)
+        item = self._db_execute(get_items)
+        if len(item) == 1:
+            if not void and item[0][-1] == 1:  # if updating void status
                 self._db_execute(update_void)
                 return
             else:
@@ -242,8 +243,15 @@ class Account(Inherit):
     def _run_condition_delete_commands(self, table, **primary_key):
         """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
 
+        where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
+        # printed sql_command to understand this line
+
+        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND " + where_clause, False):
+            raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
+                               "cannot be deleted.")
+
         sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, self.account_id)
-        sql_command += ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])
+        sql_command += where_clause
 
         self._db_execute(sql_command)
 

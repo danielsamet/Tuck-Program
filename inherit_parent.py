@@ -30,3 +30,10 @@ class Inherit:
         cursor.close(), connection.close()
 
         return results
+
+    def _check_item_exists(self, cmd):
+        """internal use only - checks item exists in database"""
+
+        if len(self._db_execute(cmd)) == 0:
+            return False
+        return True
