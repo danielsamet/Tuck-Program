@@ -1,8 +1,8 @@
 from datetime import datetime
-import sqlite3
+from inherit_parent import Inherit
 
 
-class Account:
+class Account(Inherit):
     """loads provided account details into the object with ability to run the functions below on the object accordingly
     """
 
@@ -192,32 +192,6 @@ class Account:
 
         return start_date, end_date
 
-    def _db_open(self, database_name, foreign_keys=True):
-        """internal use only - opens connections to database"""
-
-        connection = sqlite3.connect(database_name)
-        cursor = connection.cursor()
-        if foreign_keys:
-            cursor.execute("PRAGMA foreign_keys = 1")
-        return connection, cursor
-
-    def _db_execute(self, sql_command, *parameters):
-        """internal use only - executes commands on database and returns results"""
-
-        connection, cursor = self._db_open("tuck.db")
-
-        try:
-            cursor.execute(sql_command, *parameters)
-        except ValueError:
-            raise ValueError("operation parameter must be str \n(sql_command={0}, \nparameters={1})".format(sql_command,
-                                                                                                            parameters))
-        connection.commit()
-        results = cursor.fetchall()
-
-        cursor.close(), connection.close()
-
-        return results
-
     def _check_account_is_valid(self, msg):
         """internal use only - checks account_id both exists and is in database"""
 
@@ -226,10 +200,6 @@ class Account:
         else:
             if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 0:
                 raise ValueError("account_id not in database {0}".format(msg))
-
-    def _check_item_exists(self, table, ):
-
-        self._db_execute("SELECT * FROM {0} WHERE account_id = {1}, ") ####
 
     def _get_last_id(self, table):
         """internal use only - returns the last id used in database"""
@@ -273,9 +243,7 @@ class Account:
         """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
 
         sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, self.account_id)
-        sql_command += ' AND '.join(['{} = {!r}'.format(k, v) for k, v in primary_key.items()])
-
-        # print(sql_command)
+        sql_command += ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])
 
         self._db_execute(sql_command)
 
