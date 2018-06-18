@@ -68,7 +68,7 @@ class Organiser:
                 end_date DATE,
                 void INTEGER(1) NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
-                    PRIMARY KEY (account_ID, amount, start_date, end_date)
+                    PRIMARY KEY (account_ID, amount, type, start_date, end_date)
             );
             
             """)
@@ -82,7 +82,8 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
-                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
+                    PRIMARY KEY (account_ID, amount, per, start_date, end_date)
             );
             
             """)

@@ -87,68 +87,82 @@ class Account:
     def add_discount(self, amount, type_, start_date, end_date, void=False):
         """adds new discount to database for the account to be applied to all purchases by account"""
 
-        missing_account_msg = "(so you expect me to add a discount how exactly?)"
-        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
-        if not isinstance(type_, int):
-            raise ValueError("type_ parameter must be an int object")
+        self._discount_validity("add", amount, type_, start_date, end_date, void)
 
-        get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND start_date = " \
-                       "\"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date, end_date)
-        update_void = "UPDATE accounts_discounts SET void = TRUE WHERE account_id = {0} AND amount = {1} AND " \
-                      "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
-                                                                           end_date)
+        get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND type = {2} AND " \
+                       "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_, start_date,
+                                                                            end_date)
+        update_void = "UPDATE accounts_discounts SET void = TRUE WHERE account_id = {0} AND amount = {1} AND type = " \
+                      "{2} AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_,
+                                                                                   start_date, end_date)
         add_new = ["INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
                                                                                 start_date, end_date, void)]
 
-        caller = "discount"
-        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
+        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "discount")
 
-    def delete_discount(self, amount, start_date, end_date):
+    def delete_discount(self, amount, type_, start_date, end_date):
         """deletes discount from database for the account"""
 
-        self._check_account_is_valid("(so you expect me to delete the discount how exactly?)")
+        self._discount_validity("delete", amount, type_, start_date, end_date)
 
         self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id = {0} AND amount = {1} AND "
                          "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
                                                                               end_date))
 
+    def _discount_validity(self, caller, amount, type_, start_date, end_date, void=None):
+        """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
+
+        missing_account_msg = "(so you expect me to {0} a discount how exactly?)".format(caller)
+        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        if not isinstance(type_, int):
+            raise ValueError("type_ parameter must be an int object")
+
+        return start_date, end_date
+
     def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        missing_account_msg = "(so you expect me to add a spending limit how exactly?)"
+        start_date, end_date = self._spending_limit_validity("add", amount, per, start_date, end_date, void)
+
+        get_accounts_cmd = \
+            "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = \"{2}\" AND " \
+            "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date, end_date)
+        update_void_cmd = \
+            "UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND amount = \"{1}\" AND per =" \
+            " \"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date,
+                                                                              end_date)
+        add_new_cmd = \
+            "INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, per, start_date,
+                                                                              end_date, void)
+
+        self._run_condition_insert_commands(get_accounts_cmd, void, update_void_cmd, add_new_cmd, "spending limit")
+
+    def delete_spending_limit(self, amount, per, start_date, end_date):
+        """deletes spending limit from database for the account"""
+
+        start_date, end_date = self._spending_limit_validity("delete", amount, per, start_date, end_date)
+
+        self._db_execute("UPDATE accounts_spending_limit SET void = FALSE WHERE account_id = {0} AND amount = {1} AND "
+                         "per = \"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(
+                            self.account_id, amount, per, start_date, end_date))
+
+    def _spending_limit_validity(self, caller, amount, per, start_date, end_date, void=None):
+        """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
+
+        missing_account_msg = "(so you expect me to {0} a spending limit how exactly?)".format(caller)  # formats
+        # message for either adding or deleting
         start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
         if not isinstance(per, str):
             raise ValueError("per parameter must be an str object")
         elif per not in ['day', 'week', 'month', 'year']:
             raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
 
-        get_accounts = "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = " \
-                       "\"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per,
-                                                                                        start_date, end_date)
-        update_void = "UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND amount = \"{1}\"" \
-                      " AND per = \"{2}\" AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id,
-                                                                                                  amount, per,
-                                                                                                  start_date, end_date)
-        add_new = "INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, per,
-                                                                                    start_date, end_date, void)
-
-        caller = "spending limit"
-        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
-
-    def delete_spending_limit(self, amount, start_date, end_date):
-        """deletes spending limit from database for the account"""
-
-        self._check_account_is_valid("(so you expect me to delete the spending limit how exactly?)")
-
-        self._db_execute("UPDATE accounts_spending_limit SET void = FALSE WHERE account_id = {0} AND amount = {1} AND "
-                         "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
-                                                                              end_date))
+        return start_date, end_date
 
     def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
 
-        missing_account_msg = "(so you expect me to add a sub zero allowance how exactly?)"
-        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        self._sub_zero_allowance_validity("add", amount, start_date, end_date, void)
 
         get_accounts = "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND " \
                        "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
@@ -159,13 +173,25 @@ class Account:
         add_new = "INSERT INTO accounts_sub_zero_allowance VALUES (?, ?, ?, ?, ?)", (self.account_id, amount,
                                                                                      start_date, end_date, void)
 
-        caller = "sub zero allowance"
-        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
+        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "sub zero allowance")
 
-    def delete_sub_zero_allowance(self):
+    def delete_sub_zero_allowance(self, amount, start_date, end_date):
         """deletes sub-zero allowance from database for the account"""
 
-        pass
+        self._sub_zero_allowance_validity("add", amount, start_date, end_date)
+
+        self._db_execute("UPDATE accounts_sub_zero_allowance SET void = FALSE WHERE account_id = {0} AND amount = {1} "
+                         "AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
+                                                                                  end_date))
+
+    def _sub_zero_allowance_validity(self, caller, amount, start_date, end_date, void=None):
+        """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
+
+        missing_account_msg = "(so you expect me to {0} a sub zero allowance how exactly?)".format(caller)  # formats
+        # message for either adding or deleting
+        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+
+        return start_date, end_date
 
     def _db_open(self, database_name, foreign_keys=True):
         """internal use only - opens connections to database"""
@@ -205,7 +231,7 @@ class Account:
 
         return ids[-1][0]
 
-    def _check_param_validity(self, missing_account_msg, amount, start_date, end_date, void):
+    def _check_param_validity(self, missing_account_msg, amount, start_date, end_date, void=None):
         """internal use only - checks parameters are instances of the correct objects and returns formatted start and
         end dates"""
 
@@ -216,8 +242,9 @@ class Account:
             raise ValueError("amount parameter must be an int object")
         if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
             raise ValueError("dates must be passed as datetime.datetime objects")
-        if not isinstance(void, bool):
-            raise ValueError("\"void\" parameter must be from object class \"bool\"")
+        if void is not None:
+            if not isinstance(void, bool):
+                raise ValueError("\"void\" parameter must be from object class \"bool\"")
 
         return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
 
