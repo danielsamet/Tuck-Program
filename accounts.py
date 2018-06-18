@@ -57,7 +57,7 @@ class Account:
 
         # self._db_execute("DELETE FROM accounts WHERE account_ID = {0}".format(self.account_id))
 
-        self.void = True
+        self.void = False
         self.update_account()
 
     def update_account(self):
@@ -68,8 +68,8 @@ class Account:
         self._check_account_is_valid("(so you expect me to update the account how exactly?)")
 
         self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", balance=\"{2}\", notes=\"{3}\", "
-                         "void=\"{4}\" WHERE account_id={5}".format(self.f_name, self.l_name, self.balance, self.notes,
-                                                                    self.void, self.account_id))
+                         "void={4} WHERE account_id={5}".format(self.f_name, self.l_name, self.balance, self.notes,
+                                                                1 if self.void else 0, self.account_id))
 
     def update_balance(self, amount):
         """updates balance in database"""
@@ -80,7 +80,8 @@ class Account:
         except ValueError:
             raise ValueError("the amount parameter kinda needs to be a real float")
 
-        self._db_execute("INSERT INTO accounts_top_ups VALUES (?, ?, ?)", (self.account_id, amount, datetime.now()))
+        self._db_execute("INSERT INTO accounts_top_ups VALUES (?, ?, ?)", (self.account_id, amount,
+                                                                           datetime.now().replace(microsecond=0)))
         self.balance += amount
         self.update_account()
 
@@ -92,11 +93,11 @@ class Account:
         get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND type = {2} AND " \
                        "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_, start_date,
                                                                             end_date)
-        update_void = "UPDATE accounts_discounts SET void = TRUE WHERE account_id = {0} AND amount = {1} AND type = " \
+        update_void = "UPDATE accounts_discounts SET void = 0 WHERE account_id = {0} AND amount = {1} AND type = " \
                       "{2} AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_,
                                                                                    start_date, end_date)
         add_new = ["INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
-                                                                                start_date, end_date, void)]
+                                                                                start_date, end_date, 1 if void else 0)]
 
         self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "discount")
 
@@ -105,9 +106,8 @@ class Account:
 
         self._discount_validity("delete", amount, type_, start_date, end_date)
 
-        self._db_execute("UPDATE accounts_discounts SET void=FALSE WHERE account_id = {0} AND amount = {1} AND "
-                         "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
-                                                                              end_date))
+        self._run_condition_delete_commands("accounts_discounts", amount=amount, type=type_,
+                                            start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
     def _discount_validity(self, caller, amount, type_, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
@@ -128,12 +128,12 @@ class Account:
             "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = \"{2}\" AND " \
             "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date, end_date)
         update_void_cmd = \
-            "UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND amount = \"{1}\" AND per =" \
+            "UPDATE accounts_spending_limit SET void = 0 WHERE account_id = \"{0}\" AND amount = \"{1}\" AND per =" \
             " \"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date,
                                                                               end_date)
         add_new_cmd = \
             "INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, per, start_date,
-                                                                              end_date, void)
+                                                                              end_date, 1 if void else 0)
 
         self._run_condition_insert_commands(get_accounts_cmd, void, update_void_cmd, add_new_cmd, "spending limit")
 
@@ -142,9 +142,8 @@ class Account:
 
         start_date, end_date = self._spending_limit_validity("delete", amount, per, start_date, end_date)
 
-        self._db_execute("UPDATE accounts_spending_limit SET void = FALSE WHERE account_id = {0} AND amount = {1} AND "
-                         "per = \"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(
-                            self.account_id, amount, per, start_date, end_date))
+        self._run_condition_delete_commands("accounts_spending_limit", amount=amount, per="{0}".format(per),
+                                            start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
     def _spending_limit_validity(self, caller, amount, per, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
@@ -162,27 +161,27 @@ class Account:
     def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
 
-        self._sub_zero_allowance_validity("add", amount, start_date, end_date, void)
+        start_date, end_date = self._sub_zero_allowance_validity("add", amount, start_date, end_date, void)
 
         get_accounts = "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND " \
                        "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
                                                                             end_date)
-        update_void = "UPDATE accounts_sub_zero_allowance SET void = TRUE WHERE account_id = \"{0}\" AND amount = " \
+        update_void = "UPDATE accounts_sub_zero_allowance SET void = 0 WHERE account_id = \"{0}\" AND amount = " \
                       "\"{1}\" AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount,
                                                                                        start_date, end_date)
         add_new = "INSERT INTO accounts_sub_zero_allowance VALUES (?, ?, ?, ?, ?)", (self.account_id, amount,
-                                                                                     start_date, end_date, void)
+                                                                                     start_date, end_date,
+                                                                                     1 if void else 0)
 
         self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "sub zero allowance")
 
     def delete_sub_zero_allowance(self, amount, start_date, end_date):
         """deletes sub-zero allowance from database for the account"""
 
-        self._sub_zero_allowance_validity("add", amount, start_date, end_date)
+        start_date, end_date = self._sub_zero_allowance_validity("add", amount, start_date, end_date)
 
-        self._db_execute("UPDATE accounts_sub_zero_allowance SET void = FALSE WHERE account_id = {0} AND amount = {1} "
-                         "AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
-                                                                                  end_date))
+        self._run_condition_delete_commands("accounts_sub_zero_allowance", amount=amount,
+                                            start_date="{0}".format(start_date), end_date="{0}".format(end_date))
 
     def _sub_zero_allowance_validity(self, caller, amount, start_date, end_date, void=None):
         """internal use only - runs the parameter validity checks overlapping by the add and delete functions"""
@@ -207,7 +206,11 @@ class Account:
 
         connection, cursor = self._db_open("tuck.db")
 
-        cursor.execute(sql_command, *parameters)
+        try:
+            cursor.execute(sql_command, *parameters)
+        except ValueError:
+            raise ValueError("operation parameter must be str \n(sql_command={0}, \nparameters={1})".format(sql_command,
+                                                                                                            parameters))
         connection.commit()
         results = cursor.fetchall()
 
@@ -215,7 +218,7 @@ class Account:
 
         return results
 
-    def _check_account_is_valid(self, msg, ):
+    def _check_account_is_valid(self, msg):
         """internal use only - checks account_id both exists and is in database"""
 
         if self.account_id is None:
@@ -223,6 +226,10 @@ class Account:
         else:
             if len(self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id))) == 0:
                 raise ValueError("account_id not in database {0}".format(msg))
+
+    def _check_item_exists(self, table, ):
+
+        self._db_execute("SELECT * FROM {0} WHERE account_id = {1}, ") ####
 
     def _get_last_id(self, table):
         """internal use only - returns the last id used in database"""
@@ -253,22 +260,48 @@ class Account:
 
         discount = self._db_execute(get_accounts)
         if len(discount) == 1:
-            if void and not discount[-1]:  # if updating void status
+            if not void and discount[0][-1] == 1:  # if updating void status
+                print(1)
                 self._db_execute(update_void)
+                return
             else:
-                raise RuntimeError(caller, "already exists (and is not void)!")
+                raise RuntimeError("A {0} with those parameters already exists (and is not void)!".format(caller))
 
-        self._db_execute(add_new)
+        self._db_execute(add_new[0], *add_new[1:])
+
+    def _run_condition_delete_commands(self, table, **primary_key):
+        """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
+
+        sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, self.account_id)
+        sql_command += ' AND '.join(['{} = {!r}'.format(k, v) for k, v in primary_key.items()])
+
+        # print(sql_command)
+
+        self._db_execute(sql_command)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # test commands
+    def date(date_time):
+        return datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S")
+
     couch = Account()
     couch.add_account("Couch", "Master")
-    # couch = Account(1)
+
+    couch = Account(1)
+
     couch.notes = "Hello, happy testing!"
     couch.update_account()
+
     couch.update_balance(100)
-    couch.add_discount(100, 1, datetime.now(), datetime.now())
-    couch.add_spending_limit(20, "week", datetime.now(), datetime.now())
-    # couch.add_account("", "")
+
+    couch.add_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    couch.delete_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+
+    couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    couch.add_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+
+    couch.add_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+
     # couch.delete_account()
