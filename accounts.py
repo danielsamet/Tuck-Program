@@ -246,7 +246,8 @@ class Account(Inherit):
         where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
         # printed sql_command to understand this line
 
-        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND " + where_clause, False):
+        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND ".format(table, self.account_id)
+                                       + where_clause, False):
             raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
                                "cannot be deleted.")
 
@@ -281,3 +282,11 @@ if __name__ == "__main__":  # test commands
     couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
     # couch.delete_account()
+
+    # Note:
+
+    # Adding an account that does NOT exist will run without error
+    # Adding an account that DOES     exist will raise a RuntimeError exception
+
+    # Deleting an account that does NOT exist will raise a RuntimeError exception
+    # Deleting an account that does     exist will run without error (even if it is already void)
