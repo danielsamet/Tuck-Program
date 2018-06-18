@@ -85,31 +85,22 @@ class Account:
         self.update_account()
 
     def add_discount(self, amount, type_, start_date, end_date, void=False):
-        """adds new discount to database for the account to be applied to all purchases by account; returns false if
-        discount already exists and not void"""
+        """adds new discount to database for the account to be applied to all purchases by account"""
 
-        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):  # ensure datetime object is used
-            raise ValueError("dates must be passed as datetime.datetime objects")
-        start_date, end_date = start_date.replace(microsecond=0), end_date.replace(microsecond=0)
+        missing_account_msg = "(so you expect me to add a discount how exactly?)"
+        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        # -- CHECK TYPE VALIDITY -- #
 
-        self._check_account_is_valid("(so you expect me to add a discount how exactly?)")
+        get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND start_date = " \
+                       "\"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date, end_date)
+        update_void = "UPDATE accounts_discounts SET void = TRUE WHERE account_id = {0} AND amount = {1} AND " \
+                      "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
+                                                                           end_date)
+        add_new = ["INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
+                                                                                start_date, end_date, void)]
 
-        discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND "
-                                    "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount,
-                                                                                         start_date, end_date))
-
-        if len(discount) == 1:
-            if void and not discount[-1]:  # if updating void status
-                self._db_execute("UPDATE accounts_discounts SET void=TRUE WHERE account_id={0} AND amount={1} AND "
-                                 "start_date=\"{2}\" AND end_date=\"{3}\"".format(self.account_id, amount, start_date,
-                                                                                  end_date))
-            else:
-                return False
-
-        self._db_execute("INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
-                                                                                      start_date, end_date, void))
-
-        return True
+        caller = "discount"
+        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
 
     def delete_discount(self, amount, start_date, end_date):
         """deletes discount from database for the account"""
@@ -120,29 +111,25 @@ class Account:
                          "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
                                                                               end_date))
 
-    def add_spending_limit(self, amount, start_date, end_date, void=False):
+    def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):  # ensure datetime object is used
-            raise ValueError("dates must be passed as datetime.datetime objects")
-        start_date, end_date = start_date.replace(microsecond=0), end_date.replace(microsecond=0)
+        missing_account_msg = "(so you expect me to add a spending limit how exactly?)"
+        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+        # -- CHECK PER VALIDITY -- #
 
-        self._check_account_is_valid("(so you expect me to add a spending limit how exactly?)")
+        get_accounts = "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = " \
+                       "\"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per,
+                                                                                        start_date, end_date)
+        update_void = "UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND amount = \"{1}\"" \
+                      " AND per = \"{2}\" AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id,
+                                                                                                  amount, per,
+                                                                                                  start_date, end_date)
+        add_new = "INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount, per,
+                                                                                    start_date, end_date, void)
 
-        spending_limit = self._db_execute("SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND "
-                                          "amount = {1} AND start_date = \"{2}\" AND end_date = \"{3}\""
-                                          "".format(self.account_id, amount, start_date, end_date))
-
-        if len(spending_limit) == 1:
-            if void and not spending_limit[-1]:  # if updating void status
-                self._db_execute("UPDATE accounts_spending_limit SET void = TRUE WHERE account_id = \"{0}\" AND "
-                                 "amount = \"{1}\" AND start_date = \"{2}\" AND end_date = \"{3}\""
-                                 "".format(self.account_id, amount, start_date, end_date))
-            else:
-                return False
-
-        self._db_execute("INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?)", (self.account_id, amount,
-                                                                                        start_date, end_date, void))
+        caller = "spending limit"
+        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
 
     def delete_spending_limit(self, amount, start_date, end_date):
         """deletes spending limit from database for the account"""
@@ -153,10 +140,23 @@ class Account:
                          "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
                                                                               end_date))
 
-    def add_sub_zero_allowance(self):
+    def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
 
-        pass
+        missing_account_msg = "(so you expect me to add a sub zero allowance how exactly?)"
+        start_date, end_date = self._check_param_validity(missing_account_msg, amount, start_date, end_date, void)
+
+        get_accounts = "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND " \
+                       "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
+                                                                            end_date)
+        update_void = "UPDATE accounts_sub_zero_allowance SET void = TRUE WHERE account_id = \"{0}\" AND amount = " \
+                      "\"{1}\" AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount,
+                                                                                       start_date, end_date)
+        add_new = "INSERT INTO accounts_sub_zero_allowance VALUES (?, ?, ?, ?, ?)", (self.account_id, amount,
+                                                                                     start_date, end_date, void)
+
+        caller = "sub zero allowance"
+        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, caller)
 
     def delete_sub_zero_allowance(self):
         """deletes sub-zero allowance from database for the account"""
@@ -174,8 +174,6 @@ class Account:
 
     def _db_execute(self, sql_command, *parameters):
         """internal use only - executes commands on database and returns results"""
-
-        print(sql_command)
 
         connection, cursor = self._db_open("tuck.db")
 
@@ -203,6 +201,34 @@ class Account:
 
         return ids[-1][0]
 
+    def _check_param_validity(self, missing_account_msg, amount, start_date, end_date, void):
+        """internal use only - checks parameters are instances of the correct objects and returns formatted start and
+        end dates"""
+
+        self._check_account_is_valid(missing_account_msg)
+
+        # check parameter validity
+        if not isinstance(amount, int):
+            raise ValueError("amount parameter must be an int object")
+        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
+            raise ValueError("dates must be passed as datetime.datetime objects")
+        if not isinstance(void, bool):
+            raise ValueError("\"void\" parameter must be from object class \"bool\"")
+
+        return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
+
+    def _run_condition_insert_commands(self, get_accounts, void, update_void, add_new, caller):
+        """internal use only - runs insert commands for time-bound item conditions (e.g. adding discount)"""
+
+        discount = self._db_execute(get_accounts)
+        if len(discount) == 1:
+            if void and not discount[-1]:  # if updating void status
+                self._db_execute(update_void)
+            else:
+                raise RuntimeError(caller, "already exists (and is not void)!")
+
+        self._db_execute(add_new)
+
 
 if __name__ == "__main__":
     couch = Account()
@@ -212,6 +238,6 @@ if __name__ == "__main__":
     couch.update_account()
     couch.update_balance(100)
     couch.add_discount(100, 1, datetime.now(), datetime.now())
-    couch.add_spending_limit(20, datetime.now(), datetime.now())
+    couch.add_spending_limit(20, "week", datetime.now(), datetime.now())
     # couch.add_account("", "")
     # couch.delete_account()
