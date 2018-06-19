@@ -1,16 +1,16 @@
 Account:
     # purpose: to create, load and interact with individual accounts
 	Attribs:
-		- account_id            id                                      # stored everywhere # UUID
-		- f_name                name                                    # stored separately; fields[account_id, f_name, date]
-		- l_name                name                                    # stored separately; fields[account_id, l_name, date]
-		- balance               amount                                  # stored both here and separately; fields[account_id, amount, date]  # separate table stores top ups
-		- spending_limit        *[amount, per, start_date, end_date]    # stored separately; fields[account_id, amount, per, start_date, end_date, void, date]  # object will load all active item_conditions  # spending limit reached will be calculated by Transactions
-		- discount              *[amount, type, start_date, end_date]   # stored separately; fields[account_id, amount, type, start_date, end_date, void, date]  # object will load all active item_conditions
-		- sub_zero_allowance    *[amount, start_date, end_date]         # stored separately; fields[account_id, amount, start_date, end_date, void, date]  # object will load all active item_conditions
-		- notes                 note                                    # stored separately; fields[account_id, notes, date]
-		- date_created          date                                    # stored here only
-		- void                  void                                    # stored here only  # important for keeping track of related transactions if deleted
+		- account_id            id                  # stored everywhere # UUID
+		- f_name                name                # stored separately; fields[account_id, f_name, date]
+		- l_name                name                # stored separately; fields[account_id, l_name, date]
+		- balance               amount              # stored both here and separately; fields[account_id, amount, date]  # separate table stores top ups
+		- spending_limit        *[amount, per]      # stored separately; fields[account_id, amount, per, start_date, end_date, void, date]  # object will load all active item_conditions  # spending limit reached will be calculated by Transactions
+		- discount              *[amount, type]     # stored separately; fields[account_id, amount, type, start_date, end_date, void, date]  # object will load all active item_conditions
+		- sub_zero_allowance    *[amount]           # stored separately; fields[account_id, amount, start_date, end_date, void, date]  # object will load all active item_conditions
+		- notes                 note                # stored separately; fields[account_id, notes, date]
+		- date_created          date                # stored here only
+		- void                  void                # stored here only  # important for keeping track of related transactions if deleted
 		# note: stored "here" refers to in the account table
 	Methods:
 	    - __init__(account_id=None)
@@ -29,33 +29,38 @@ Account:
 
 		- update_detail(**details)  # calls appropriate method below based on details key name
 
-		- _update_f_name(name)
-		- _update_l_name(name)
-		- _update_balance(amount)
-		- _update_notes(note)
-
-# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
-
 Product:
 	Attribs:
-		- product_id
-		- product_name
-		- supplier
-		- cost_price
-		- sale_price
-		- quantity
-		- purchase_limit
-		- discount [amount, type]
-		- offer [buy_x, get_y, z_off]
-		- notes
-		- date_created
-		- void  # important for keeping track of related transactions if deleted
+		- product_id        id                      # stored everywhere  # UUID
+		- p_name            name                    # stored separately; fields[product_id, p_name, date]
+		- supplier          name                    # stored separately; fields[product_id, supplier, date]
+		- cost_price        amount                  # stored separately; fields[product_id, amount, date]
+		- sale_price        amount                  # stored separately; fields[product_id, amount, date]
+		- quantity          amount                  # stored both here and separately; fields[product_id, amount, date] # separate table stores top ups
+		- purchase_limit    [amount, per]           # stored separately; fields[product_id, amount, per, start_date, end_date, void, date]  # object will load all active item_conditions  # purchase limit reached will be calculated by Transactions
+		- discount          *[amount, type]         # stored separately; fields[product_id, amount, type, start_date, end_date, void, date]  # object will load all active item_conditions
+		- offer             *[buy_x, get_y, z_off]  # stored separately; fields[product_id, buy_x, get_y, z_off, start_date, end_date, void, date]  # object will load all active item_conditions
+		- notes             note                    # stored separately; fields[product_id, notes, date]
+		- date_created      date                    # stored here only
+		- void              void                    # stored here only  # important for keeping track of related transactions if deleted
 	Methods:
-		- add_product / delete_product / update_product  # update applies to product_name, supplier and notes
-		- update_cost_price / update_sale_price
-		- add_discount / delete_discount
-		- add_purchase_limit / delete_purchase_limit
-		- add_offer / delete_offer
+	    - __init__(account_id=None)
+
+		- add_product(f_name, l_name, balance=0, notes="")
+		- delete_product()
+
+		- add_discount(amount, type, start_date, end_date)
+		- delete_discount(date)
+
+		- add_purchase_limit(amount, per, start_date, end_date)
+		- delete_purchase_limit(date)
+
+		- add_offer(buy_x, get_y, z_off, start_date, end_date)
+		- delete_offer(date)
+
+		- update_detail(**details)  # calls appropriate method below based on details key name
+
+# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
 
 Transaction:
     Attribs:
