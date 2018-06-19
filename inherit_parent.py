@@ -12,6 +12,7 @@ class Inherit:
         cursor = connection.cursor()
         if foreign_keys:
             cursor.execute("PRAGMA foreign_keys = 1")
+
         return connection, cursor
 
     def _db_execute(self, sql_command, *parameters):
@@ -36,4 +37,13 @@ class Inherit:
 
         if len(self._db_execute(cmd)) == 0:
             return False
+
         return True
+
+    def _get_last_id(self, table):
+        """internal use only - returns the last id used in database"""
+
+        column_name = self._db_execute("PRAGMA TABLE_INFO({0})".format(table))[0][1]
+        ids = self._db_execute("SELECT {0} FROM {1}".format(column_name, table))
+
+        return ids[-1][0]

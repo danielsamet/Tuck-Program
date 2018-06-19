@@ -87,7 +87,7 @@ class Organiser:
                 end_date DATE,
                 void INTEGER(1) NOT NULL,
                 date DATE PRIMARY KEY,
-                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
             
             """)
@@ -102,7 +102,7 @@ class Organiser:
                 end_date DATE,
                 void INTEGER NOT NULL,
                 date DATE PRIMARY KEY,
-                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
             
             """)
@@ -205,11 +205,11 @@ class Organiser:
             
             """)
 
-        try:
-            for command in sql_command:
+        for command in sql_command:
+            try:
                 self._db_execute(command)
-        except sqlite3.OperationalError:  # tables already exist (no need to worry abt one existing and not another)
-            print("table already exists\n")
+            except sqlite3.OperationalError:  # tables already exist (no need to worry abt one existing and not another)
+                print("table already exists\n")
 
     def show_database_structure(self):
         """returns current database structure"""
@@ -263,7 +263,5 @@ class Organiser:
 if __name__ == "__main__":
     # Organiser().create_database()
     # Organiser().show_database_structure()
-    # Organiser().show_all_tables()
-    # Organiser().purge_data()
-
-    Organiser()._db_execute("SELECT * FROM accounts_f_name WHERE account_id = {0} AND date = (SELECT max(date) FROM accounts_f_name WHERE account_id = {0})".format(1))
+    Organiser().show_all_tables()
+    Organiser().purge_data()

@@ -174,7 +174,7 @@ class Account(Inherit):
         if len(details) == 0:
             raise KeyError("update_details requires at least one argument")
 
-        for key, value in details.values():
+        for key, value in details.items():
             if key == "f_name":
                 self._update_item("accounts_f_name", value, str)
                 self.f_name = value
@@ -198,9 +198,8 @@ class Account(Inherit):
         """internal use only - updates given table with given value (only used on standard items that don't have a
         delete option)"""
 
-        for type__ in type_:
-            if not isinstance(value, type__):
-                raise ValueError("{0} must be an instance of {1}".format(value, type__))
+        if not any(isinstance(value, type__) for type__ in type_):
+            raise ValueError("{0} must be an instance of one of the following {1}".format(value, type_))
 
         self._db_execute("INSERT INTO {0} VALUES (?, ?, ?)".format(table), (self.account_id, value, datetime.now()))
 
@@ -265,27 +264,30 @@ if __name__ == "__main__":  # test commands
     def _date(date_time):
         return datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S")
 
+    def _date2(date_time):  # with microsecond
+        return datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S.%f")
+
     couch = Account()
     couch.add_account("Couch", "Master")
 
-    # couch = Account(1)
-#
-    # couch.notes = "Hello, happy testing!"
-    # couch.update_account()
-#
-    # couch.update_balance(100)
-#
-    # couch.add_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    # # couch.delete_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-#
-    # # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    # couch.add_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    couch = Account(1)
+
+    couch.update_details(f_name="Couche")
+    couch.update_details(l_name="Lord")
+    couch.update_details(l_name="Lord")
+    couch.update_details(notes="Testing some new designs out.")
+    couch.update_details(balance=100)
+
+    # couch.add_discount(100, 1, _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
+    # couch.delete_discount("2018-06-19 14:50:21.371553")
+
+    couch.add_spending_limit(20, "week", _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
     # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-#
-    # couch.add_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+
+    couch.add_sub_zero_allowance(5, _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
     # couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
-    # couch.delete_account()
+    couch.delete_account()
 
     # Note:
 
