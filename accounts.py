@@ -168,33 +168,41 @@ class Account(Inherit):
 
         self._run_condition_delete_commands("accounts_sub_zero_allowance", date=date)
 
-    def update_account(self):
-        """updates account in database with any new data"""
-        # note: cannot just run the delete and add functions as the database could have related records for the account,
-        # e.g. discounts
+    def update_details(self, **details):
+        """updates details passed (raises an error if an unknown detail is passed)"""
 
-        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
-            raise ValueError("Account is either set to None or does not exist in database")
+        if len(details) == 0:
+            raise KeyError("update_details requires at least one argument")
 
-        self._db_execute("UPDATE accounts SET first_name=\"{0}\", last_name=\"{1}\", balance=\"{2}\", notes=\"{3}\", "
-                         "void={4} WHERE account_id={5}".format(self.f_name, self.l_name, self.balance, self.notes,
-                                                                1 if self.void else 0, self.account_id))
+        for key, value in details.values():
+            if key == "f_name":
+                self._update_item("accounts_f_name", value, str)
+                self.f_name = value
+            elif key == "l_name":
+                self._update_item("accounts_l_name", value, str)
+                self.l_name = value
+            elif key == "balance":
+                self._update_item("accounts_top_ups", value, int, float)
+                new_balance = self.balance + value
+                self._db_execute("UPDATE accounts SET balance = {0} WHERE account_ID = {1}".format(new_balance,
+                                                                                                   self.account_id))
+                self.balance = new_balance
+            elif key == "notes":
+                self._update_item("accounts_notes", value, str)
+                self.notes = value
+            else:
+                raise KeyError("{0} is not a valid detail name. "
+                               "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
 
-    def update_balance(self, amount):
-        """updates balance in database"""
+    def _update_item(self, table, value, *type_):
+        """internal use only - updates given table with given value (only used on standard items that don't have a
+        delete option)"""
 
-        if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
-            raise ValueError("Account is either set to None or does not exist in database")
+        for type__ in type_:
+            if not isinstance(value, type__):
+                raise ValueError("{0} must be an instance of {1}".format(value, type__))
 
-        try:
-            amount = float(amount)
-        except ValueError:
-            raise ValueError("the amount parameter kinda needs to be a real float")
-
-        self._db_execute("INSERT INTO accounts_top_ups VALUES (?, ?, ?)", (self.account_id, amount,
-                                                                           datetime.now().replace(microsecond=0)))
-        self.balance += amount
-        self.update_account()
+        self._db_execute("INSERT INTO {0} VALUES (?, ?, ?)".format(table), (self.account_id, value, datetime.now()))
 
     def _check_item_exists(self, cmd, account_check=True):
         """internal use only - overriding parent class to include a check for account_id being None None"""
