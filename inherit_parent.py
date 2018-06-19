@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 
 class Inherit:
@@ -40,6 +41,21 @@ class Inherit:
 
         return True
 
+    def _check_param_validity(self, amount, start_date, end_date, void=None):
+        """internal use only - checks parameters are instances of the correct objects and returns formatted start and
+        end dates"""
+
+        # check parameter validity
+        if not isinstance(amount, int):
+            raise ValueError("amount parameter must be an int object")
+        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
+            raise ValueError("dates must be passed as datetime.datetime objects")
+        if void is not None:
+            if not isinstance(void, bool):
+                raise ValueError("\"void\" parameter must be from object class \"bool\"")
+
+        return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
+
     def _get_last_id(self, table):
         """internal use only - returns the last id used in database"""
 
@@ -47,3 +63,32 @@ class Inherit:
         ids = self._db_execute("SELECT {0} FROM {1}".format(column_name, table))
 
         return ids[-1][0]
+
+    def _run_condition_insert_commands(self, get_items, void, update_void, add_new, caller):
+        """internal use only - runs insert commands for time-bound item conditions (e.g. adding discount)"""
+
+        item = self._db_execute(get_items)
+        if len(item) == 1:
+            if not void and item[0][-1] == 1:  # if updating void status
+                self._db_execute(update_void)
+                return
+            else:
+                raise RuntimeError("A {0} with those parameters already exists (and is not void)!".format(caller))
+
+        self._db_execute(add_new[0], *add_new[1:])
+
+    def _run_condition_delete_commands(self, table, item_id, **primary_key):
+        """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
+
+        where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
+        # printed sql_command to understand this line
+
+        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND ".format(table, item_id)
+                                       + where_clause):
+            raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
+                               "cannot be deleted.")
+
+        sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, item_id)
+        sql_command += where_clause
+
+        self._db_execute(sql_command)

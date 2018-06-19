@@ -115,7 +115,7 @@ class Account(Inherit):
     def delete_discount(self, date):
         """deletes discount from database for the account"""
 
-        self._run_condition_delete_commands("accounts_discounts", date=date)
+        self._run_condition_delete_commands("accounts_discounts", self.account_id, date=date)
 
     def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
@@ -143,7 +143,7 @@ class Account(Inherit):
     def delete_spending_limit(self, date):
         """deletes spending limit from database for the account"""
 
-        self._run_condition_delete_commands("accounts_spending_limit", date=date)
+        self._run_condition_delete_commands("accounts_spending_limit", self.account_id, date=date)
 
     def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
@@ -166,7 +166,7 @@ class Account(Inherit):
     def delete_sub_zero_allowance(self, date):
         """deletes sub-zero allowance from database for the account"""
 
-        self._run_condition_delete_commands("accounts_sub_zero_allowance", date=date)
+        self._run_condition_delete_commands("accounts_sub_zero_allowance", self.account_id, date=date)
 
     def update_details(self, **details):
         """updates details passed (raises an error if an unknown detail is passed)"""
@@ -204,7 +204,7 @@ class Account(Inherit):
         self._db_execute("INSERT INTO {0} VALUES (?, ?, ?)".format(table), (self.account_id, value, datetime.now()))
 
     def _check_item_exists(self, cmd, account_check=True):
-        """internal use only - overriding parent class to include a check for account_id being None None"""
+        """internal use only - overriding parent class to include a check for account_id being None"""
 
         if account_check:
             if self.account_id is None:
@@ -213,51 +213,12 @@ class Account(Inherit):
         return super()._check_item_exists(cmd)
 
     def _check_param_validity(self, amount, start_date, end_date, void=None):
-        """internal use only - checks parameters are instances of the correct objects and returns formatted start and
-        end dates"""
+        """internal use only - overriding parent class to include a check if account exists"""
 
         if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
             raise ValueError("Account is either set to None or does not exist in database")
 
-        # check parameter validity
-        if not isinstance(amount, int):
-            raise ValueError("amount parameter must be an int object")
-        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
-            raise ValueError("dates must be passed as datetime.datetime objects")
-        if void is not None:
-            if not isinstance(void, bool):
-                raise ValueError("\"void\" parameter must be from object class \"bool\"")
-
-        return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
-
-    def _run_condition_insert_commands(self, get_items, void, update_void, add_new, caller):
-        """internal use only - runs insert commands for time-bound item conditions (e.g. adding discount)"""
-
-        item = self._db_execute(get_items)
-        if len(item) == 1:
-            if not void and item[0][-1] == 1:  # if updating void status
-                self._db_execute(update_void)
-                return
-            else:
-                raise RuntimeError("A {0} with those parameters already exists (and is not void)!".format(caller))
-
-        self._db_execute(add_new[0], *add_new[1:])
-
-    def _run_condition_delete_commands(self, table, **primary_key):
-        """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
-
-        where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
-        # printed sql_command to understand this line
-
-        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND ".format(table, self.account_id)
-                                       + where_clause, False):
-            raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
-                               "cannot be deleted.")
-
-        sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, self.account_id)
-        sql_command += where_clause
-
-        self._db_execute(sql_command)
+        return super()._check_param_validity(amount, start_date, end_date, void)
 
 
 if __name__ == "__main__":  # test commands
