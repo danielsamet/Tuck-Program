@@ -8,7 +8,7 @@ class Account(Inherit):
 
     def __init__(self, account_id=None):
         """initialises account object with all attributes"""
-        def _get_active_item_condition(cmd):
+        def _get_active_item_condition(cmd, start_date_pos):
             """internal use only - returns only those items from the given command that are not void and current date
             is within start and end date"""
 
@@ -17,10 +17,11 @@ class Account(Inherit):
             item_conditions = self._db_execute(cmd)
 
             for item in item_conditions:
-                if item[-1] == 0:  # if not void
-                    if datetime.strptime(item[3], "%Y-%m-%d %H:%M:%S") < datetime.now() \
-                            < datetime.strptime(item[4], "%Y-%m-%d %H:%M:%S"):
-                        active_items.append(item)
+                if item[-2] == 0:  # if not void
+                    if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now() \
+                            < datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
+                        active_items.append(list(item[:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
+                        # method to concatenate when slice is int
 
             return active_items
 
@@ -40,11 +41,11 @@ class Account(Inherit):
             f_name = _get_last_by_date("accounts_f_name")
             l_name = _get_last_by_date("accounts_l_name")
             discount = _get_active_item_condition(
-                "SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
+                "SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id), 3)
             spending_limit = _get_active_item_condition(
-                "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id))
+                "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id), 3)
             sub_zero_allowance = _get_active_item_condition(
-                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id))
+                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)
             notes = _get_last_by_date("accounts_notes")
         else:
             account = [int(), int(), datetime.now(), False]
@@ -239,13 +240,13 @@ if __name__ == "__main__":  # test commands
     couch.update_details(notes="Testing some new designs out.")
     couch.update_details(balance=100)
 
-    # couch.add_discount(100, 1, _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
+    couch.add_discount(100, 1, _date('2018-06-10 14:38:30'), _date('2018-06-30 14:38:30'))
     # couch.delete_discount("2018-06-19 14:50:21.371553")
 
-    couch.add_spending_limit(20, "week", _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
+    couch.add_spending_limit(20, "week", _date('2018-06-10 14:38:30'), _date('2018-06-24 14:38:30'))
     # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
-    couch.add_sub_zero_allowance(5, _date('2018-06-18 14:38:30'), _date('2018-06-18 14:38:30'))
+    couch.add_sub_zero_allowance(5, _date('2018-06-11 14:38:30'), _date('2018-06-27 14:38:30'))
     # couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
     couch.delete_account()
