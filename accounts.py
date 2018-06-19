@@ -8,49 +8,81 @@ class Account(Inherit):
 
     def __init__(self, account_id=None):
         """initialises account object with all attributes"""
+        def _get_active_item_condition(cmd):
+            """internal use only - returns only those items from the given command that are not void and current date
+            is within start and end date"""
+
+            active_items = list()
+
+            item_conditions = self._db_execute(cmd)
+
+            for item in item_conditions:
+                if item[-1] == 0:  # if not void
+                    if datetime.strptime(item[3], "%Y-%m-%d %H:%M:%S") < datetime.now() \
+                            < datetime.strptime(item[4], "%Y-%m-%d %H:%M:%S"):
+                        active_items.append(item)
+
+            return active_items
+
+        def _get_last_by_date(table):
+            """internal use only - gets last item entered into table for current account"""
+
+            return self._db_execute("SELECT * FROM {0} WHERE account_id = {1} AND date = "
+                                    "(SELECT max(date) FROM {0} WHERE account_id = {1})".format(table, self.account_id))
 
         if account_id is not None:
             self.account_id = account_id
 
             if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
-                raise ValueError("Account is either set to None or does not exist in database")
+                raise ValueError("Account does not exist in database")
 
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
-            discount = self._db_execute("SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
-            spending_limit = \
-                self._db_execute("SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id))
-            sub_zero_allowance = \
-                self._db_execute("SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id))
+            f_name = _get_last_by_date("accounts_f_name")
+            l_name = _get_last_by_date("accounts_l_name")
+            discount = _get_active_item_condition(
+                "SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id))
+            spending_limit = _get_active_item_condition(
+                "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id))
+            sub_zero_allowance = _get_active_item_condition(
+                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id))
+            notes = _get_last_by_date("accounts_notes")
         else:
-            account = [int(), str(), str(), int(), str(), datetime.now(), False]
-            discount, spending_limit, sub_zero_allowance = None, None, None
+            account = [int(), int(), datetime.now(), False]
+            f_name, l_name, notes = str(), str(), str()
+            discount, spending_limit, sub_zero_allowance = [], [], []
 
         self.account_id = account_id
-        self.f_name = account[1]
-        self.l_name = account[2]
-        try:
-            self.balance = float(account[3])
-        except ValueError:
-            self.balance = float()
+        self.f_name = f_name
+        self.l_name = l_name
+        self.balance = float(account[1])
+
         self.discount = discount
         self.spending_limit = spending_limit
         self.sub_zero_allowance = sub_zero_allowance
-        self.notes = account[4]
-        self.date_created = account[5]
-        self.void = account[6]
+
+        self.notes = notes
+        self.date_created = account[2]
+        self.void = account[3]
 
     def add_account(self, f_name, l_name, notes=""):
-        """adds account to database with only name parameters"""
+        """adds account to database"""
 
         if self.account_id is not None:
             raise ValueError("cannot add an account that already exists! (if account is new then ensure to leave "
                              "account_id empty else if account is simply void then just update the void attrib and run"
                              " update_account)")
 
-        self._db_execute("INSERT INTO accounts VALUES (NULL, ?, ?, ?, ?, ?, ?)",
-                         (f_name, l_name, notes, 0, datetime.now(), 0))
+        self._db_execute("INSERT INTO accounts VALUES (NULL, ?, ?, ?)", (0, datetime.now(), 0))
 
         self.account_id, self.f_name, self.l_name, self.notes = self._get_last_id("accounts"), f_name, l_name, notes
+
+        self._db_execute("INSERT INTO accounts_f_name VALUES (?, ?, ?)",
+                         (self.account_id, f_name, datetime.now()))
+        self._db_execute("INSERT INTO accounts_l_name VALUES (?, ?, ?)",
+                         (self.account_id, l_name, datetime.now()))
+        if notes != "":
+            self._db_execute("INSERT INTO accounts_notes VALUES (?, ?, ?)",
+                             (self.account_id, notes, datetime.now()))
 
     def delete_account(self):
         """deletes account from database using account_id"""
@@ -58,10 +90,8 @@ class Account(Inherit):
         if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
             raise ValueError("Account is either set to None or does not exist in database")
 
-        # self._db_execute("DELETE FROM accounts WHERE account_ID = {0}".format(self.account_id))
-
+        self._db_execute("UPDATE accounts SET void = 1 WHERE account_id = {0}".format(self.account_id))
         self.void = False
-        self.update_account()
 
     def update_account(self):
         """updates account in database with any new data"""
@@ -202,13 +232,6 @@ class Account(Inherit):
 
         return super()._check_item_exists(cmd)
 
-    def _get_last_id(self, table):
-        """internal use only - returns the last id used in database"""
-
-        ids = self._db_execute("SELECT account_id FROM {0}".format(table))
-
-        return ids[-1][0]
-
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - checks parameters are instances of the correct objects and returns formatted start and
         end dates"""
@@ -264,22 +287,22 @@ if __name__ == "__main__":  # test commands
     couch = Account()
     couch.add_account("Couch", "Master")
 
-    couch = Account(1)
-
-    couch.notes = "Hello, happy testing!"
-    couch.update_account()
-
-    couch.update_balance(100)
-
-    couch.add_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    couch.delete_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-
-    couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    couch.add_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-
-    couch.add_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
-    couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    # couch = Account(1)
+#
+    # couch.notes = "Hello, happy testing!"
+    # couch.update_account()
+#
+    # couch.update_balance(100)
+#
+    # couch.add_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    # # couch.delete_discount(100, 1, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+#
+    # # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    # couch.add_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+#
+    # couch.add_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
+    # couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
     # couch.delete_account()
 
