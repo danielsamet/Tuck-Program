@@ -36,10 +36,7 @@ class Organiser:
             
             CREATE TABLE accounts (
                 account_ID INTEGER PRIMARY KEY,
-                first_name VARCHAR(20) NOT NULL,
-                last_name VARCHAR(30) NOT NULL,
                 balance INTEGER NOT NULL,
-                notes VARCHAR(255),
                 date_added DATE NOT NULL,
                 void INTEGER(1) NOT NULL
             );
@@ -48,10 +45,32 @@ class Organiser:
         sql_command.append(
             """
             
+            CREATE TABLE accounts_f_name (
+                account_ID INETEGER,
+                name VARCHAR(20) NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+            );
+            
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE accounts_l_name (
+                account_ID INTEGER,
+                name VARCHAR(30) NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+            
             CREATE TABLE accounts_top_ups (
                 account_ID INTEGER,
                 amount INTEGER NOT NULL,
-                date_topped_up DATE NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
             
@@ -67,8 +86,8 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER(1) NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
-                    PRIMARY KEY (account_ID, amount, type, start_date, end_date)
             );
             
             """)
@@ -82,8 +101,8 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
-                    PRIMARY KEY (account_ID, amount, per, start_date, end_date)
             );
             
             """)
@@ -96,9 +115,21 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
             );
             
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE accounts_notes (
+                account_ID INTEGER,
+                notes VARCHAR(255),
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+            );
+
             """)
         sql_command.append(
             """
@@ -232,5 +263,7 @@ class Organiser:
 if __name__ == "__main__":
     # Organiser().create_database()
     # Organiser().show_database_structure()
-    Organiser().show_all_tables()
-    Organiser().purge_data()
+    # Organiser().show_all_tables()
+    # Organiser().purge_data()
+
+    Organiser()._db_execute("SELECT * FROM accounts_f_name WHERE account_id = {0} AND date = (SELECT max(date) FROM accounts_f_name WHERE account_id = {0})".format(1))
