@@ -92,3 +92,27 @@ class Inherit:
         sql_command += where_clause
 
         self._db_execute(sql_command)
+
+    def _get_active_item_condition(self, cmd, start_date_pos):
+        """internal use only - returns only those items from the given command that are not void and current date
+        is within start and end date"""
+
+        active_items = list()
+
+        item_conditions = self._db_execute(cmd)
+
+        for item in item_conditions:
+            if item[-2] == 0:  # if not void
+                if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now() \
+                        < datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
+                    active_items.append(list(item[:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
+                    # method to concatenate when slice is int
+
+        return active_items
+
+    def _get_last_by_date(self, table, **item_id):
+        """internal use only - gets last item entered into table for current account"""
+
+        return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = "
+                                "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, list(item_id.keys())[0],
+                                                                                     list(item_id.values())[0]))

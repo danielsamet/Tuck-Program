@@ -8,28 +8,6 @@ class Account(Inherit):
 
     def __init__(self, account_id=None):
         """initialises account object with all attributes"""
-        def _get_active_item_condition(cmd, start_date_pos):
-            """internal use only - returns only those items from the given command that are not void and current date
-            is within start and end date"""
-
-            active_items = list()
-
-            item_conditions = self._db_execute(cmd)
-
-            for item in item_conditions:
-                if item[-2] == 0:  # if not void
-                    if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now() \
-                            < datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
-                        active_items.append(list(item[:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
-                        # method to concatenate when slice is int
-
-            return active_items
-
-        def _get_last_by_date(table):
-            """internal use only - gets last item entered into table for current account"""
-
-            return self._db_execute("SELECT * FROM {0} WHERE account_id = {1} AND date = "
-                                    "(SELECT max(date) FROM {0} WHERE account_id = {1})".format(table, self.account_id))
 
         if account_id is not None:
             self.account_id = account_id
@@ -38,15 +16,15 @@ class Account(Inherit):
                 raise ValueError("Account does not exist in database")
 
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
-            f_name = _get_last_by_date("accounts_f_name")
-            l_name = _get_last_by_date("accounts_l_name")
-            discount = _get_active_item_condition(
+            f_name = self._get_last_by_date("accounts_f_name", account_id=account_id)
+            l_name = self._get_last_by_date("accounts_l_name", account_id=account_id)
+            discount = self._get_active_item_condition(
                 "SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id), 3)
-            spending_limit = _get_active_item_condition(
+            spending_limit = self._get_active_item_condition(
                 "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id), 3)
-            sub_zero_allowance = _get_active_item_condition(
+            sub_zero_allowance = self._get_active_item_condition(
                 "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)
-            notes = _get_last_by_date("accounts_notes")
+            notes = self._get_last_by_date("accounts_notes", account_id=account_id)
         else:
             account = [int(), int(), datetime.now(), False]
             f_name, l_name, notes = str(), str(), str()
