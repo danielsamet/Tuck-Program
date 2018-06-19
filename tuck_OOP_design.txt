@@ -1,21 +1,40 @@
 Account:
+    # purpose: to create, load and interact with individual accounts
 	Attribs:
-		- account_id
-		- f_name
-		- l_name
-		- balance
-		- spending_limit
-		- discount [amount, type]
-		- sub_zero_allowance
-		- notes
-		- date_created
-		- void  # important for keeping track of related transactions if deleted
+		- account_id            id                                      # stored everywhere # UUID
+		- f_name                name                                    # stored separately; fields[account_id, f_name, date]
+		- l_name                name                                    # stored separately; fields[account_id, l_name, date]
+		- balance               amount                                  # stored both here and separately; fields[account_id, amount, date]  # separate table stores top ups
+		- spending_limit        *[amount, per, start_date, end_date]    # stored separately; fields[account_id, amount, per, start_date, end_date, void, date]  # object will load all active item_conditions  # spending limit reached will be calculated by Transactions
+		- discount              *[amount, type, start_date, end_date]   # stored separately; fields[account_id, amount, type, start_date, end_date, void, date]  # object will load all active item_conditions
+		- sub_zero_allowance    *[amount, start_date, end_date]         # stored separately; fields[account_id, amount, start_date, end_date, void, date]  # object will load all active item_conditions
+		- notes                 note                                    # stored separately; fields[account_id, notes, date]
+		- date_created          date                                    # stored here only
+		- void                  void                                    # stored here only  # important for keeping track of related transactions if deleted
+		# note: stored "here" refers to in the account table
 	Methods:
-		- add_account / delete_account / update_account  # update applies to f_name, l_name and notes
-		- update_budget
-		- add_discount / delete_discount
-		- add_spending_limit / delete_spending_limit
-		- add_sub_zero_allowance / delete_sub_zero_allowance
+	    - __init__(account_id=None)
+
+		- add_account(f_name, l_name, balance=0, notes="")
+		- delete_account()
+
+		- add_discount(amount, type, start_date, end_date)
+		- delete_discount(date)
+
+		- add_spending_limit(amount, per, start_date, end_date)
+		- delete_spending_limit(date)
+
+		- add_sub_zero_allowance(amount, start_date, end_date)
+		- delete_sub_zero_allowance(date)
+
+		- update_detail(**details)  # calls appropriate method below based on details key name
+
+		- _update_f_name(name)
+		- _update_l_name(name)
+		- _update_balance(amount)
+		- _update_notes(note)
+
+# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
 
 Product:
 	Attribs:
@@ -54,6 +73,10 @@ ItemFuncs:  # container for common functions to be inherited by account and prod
 		- add_item / delete_item / update_item
 		- add_discount / remove_discount
 		- add_limit / remove_limit
+
+ItemHistory:  # returns all history using item_id (e.g. account_id) and field name (e.g. balance)
+    Methods:
+        - get_history(item_id, field_name)
 
 Organiser:  # temp class for interacting with database
     Methods:
