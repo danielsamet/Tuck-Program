@@ -216,19 +216,6 @@ class Organiser:
         sql_command.append(
             """
             
-            CREATE TABLE products_purchase_limit (
-                product_ID INTEGER,
-                amount INTEGER NOT NULL,
-                start_date DATE NOT NULL,
-                end_date DATE,
-                void INTEGER NOT NULL,
-                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
-            );
-            
-            """)
-        sql_command.append(
-            """
-            
             CREATE TABLE products_discount (
                 product_ID INTEGER,
                 amount INTEGER NOT NULL,
@@ -236,9 +223,24 @@ class Organiser:
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
             );
             
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_purchase_limit (
+                product_ID INTEGER,
+                amount INTEGER NOT NULL,
+                start_date DATE NOT NULL,
+                end_date DATE,
+                void INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
+            );
+
             """)
         sql_command.append(
             """
@@ -248,9 +250,11 @@ class Organiser:
                 buy_x INTEGER NOT NULL,
                 get_y INTEGER NOT NULL,
                 z_off INTEGER NOT NULL,
+                type INTEGER(1) NOT NULL,
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
                     FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
             );
             
