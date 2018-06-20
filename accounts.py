@@ -11,24 +11,26 @@ class Account(Inherit):
 
         if account_id is not None:
             self.account_id = account_id
+            self.item_id = self.account_id
 
             if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
                 raise ValueError("Account does not exist in database")
 
             account = self._db_execute("SELECT * FROM accounts WHERE account_id = {0}".format(account_id))[0]
-            f_name = self._get_last_by_date("accounts_f_name", account_id=account_id)
-            l_name = self._get_last_by_date("accounts_l_name", account_id=account_id)
+            f_name = self._get_last_by_date("accounts_f_name")
+            l_name = self._get_last_by_date("accounts_l_name")
             discount = self._get_active_item_condition(
                 "SELECT * FROM accounts_discounts WHERE account_id = {0}".format(account_id), 3)
             spending_limit = self._get_active_item_condition(
                 "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id), 3)
             sub_zero_allowance = self._get_active_item_condition(
                 "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)
-            notes = self._get_last_by_date("accounts_notes", account_id=account_id)
+            notes = self._get_last_by_date("accounts_notes")
         else:
             account = [int(), int(), datetime.now(), False]
             f_name, l_name, notes = str(), str(), str()
             discount, spending_limit, sub_zero_allowance = [], [], []
+            self.item_id = account_id
 
         self.account_id = account_id
         self.f_name = f_name
@@ -57,11 +59,9 @@ class Account(Inherit):
 
         self._db_execute("INSERT INTO accounts_f_name VALUES (?, ?, ?)",
                          (self.account_id, f_name, datetime.now()))
-        self._db_execute("INSERT INTO accounts_l_name VALUES (?, ?, ?)",
-                         (self.account_id, l_name, datetime.now()))
+        self._db_execute("INSERT INTO accounts_l_name VALUES (?, ?, ?)", (self.account_id, l_name, datetime.now()))
         if notes != "":
-            self._db_execute("INSERT INTO accounts_notes VALUES (?, ?, ?)",
-                             (self.account_id, notes, datetime.now()))
+            self._db_execute("INSERT INTO accounts_notes VALUES (?, ?, ?)", (self.account_id, notes, datetime.now()))
 
     def delete_account(self):
         """deletes account from database using account_id"""
@@ -73,79 +73,45 @@ class Account(Inherit):
         self.void = False
 
     def add_discount(self, amount, type_, start_date, end_date, void=False):
-        """adds new discount to database for the account to be applied to all purchases by account"""
+        """adds new discount to database for the account"""
 
-        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
-        if not isinstance(type_, int):
-            raise ValueError("type_ parameter must be an int object")
-
-        get_accounts = "SELECT * FROM accounts_discounts WHERE account_id = {0} AND amount = {1} AND type = {2} AND " \
-                       "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_, start_date,
-                                                                            end_date)
-        update_void = "UPDATE accounts_discounts SET void = 0 WHERE account_id = {0} AND amount = {1} AND type = " \
-                      "{2} AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, type_,
-                                                                                   start_date, end_date)
-        add_new = ["INSERT INTO accounts_discounts VALUES (?, ?, ?, ?, ?, ?, ?)", (self.account_id, amount, type_,
-                                                                                   start_date, end_date,
-                                                                                   1 if void else 0, datetime.now())]
-
-        self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "discount")
+        Inherit._add_discount(self, "account", amount, type_, start_date, end_date, void)
 
     def delete_discount(self, date):
         """deletes discount from database for the account"""
 
-        self._run_condition_delete_commands("accounts_discounts", self.account_id, date=date)
+        self._run_condition_delete_commands("accounts_discounts", date=date)
 
     def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
-        if not isinstance(per, str):
-            raise ValueError("per parameter must be an str object")
-        elif per not in ['day', 'week', 'month', 'year']:
-            raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
-
-        get_accounts_cmd = \
-            "SELECT * FROM accounts_spending_limit WHERE account_id = {0} AND amount = {1} AND per = \"{2}\" AND " \
-            "start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date, end_date)
-        update_void_cmd = \
-            "UPDATE accounts_spending_limit SET void = 0 WHERE account_id = \"{0}\" AND amount = \"{1}\" AND per =" \
-            " \"{2}\" AND start_date = \"{3}\" AND end_date = \"{4}\"".format(self.account_id, amount, per, start_date,
-                                                                              end_date)
-        add_new_cmd = \
-            "INSERT INTO accounts_spending_limit VALUES (?, ?, ?, ?, ?, ?, ?)", (self.account_id, amount, per,
-                                                                                 start_date, end_date,
-                                                                                 1 if void else 0, datetime.now())
-
-        self._run_condition_insert_commands(get_accounts_cmd, void, update_void_cmd, add_new_cmd, "spending limit")
+        Inherit._add_limit(self, "account", amount, per, start_date, end_date, void)
 
     def delete_spending_limit(self, date):
         """deletes spending limit from database for the account"""
 
-        self._run_condition_delete_commands("accounts_spending_limit", self.account_id, date=date)
+        self._run_condition_delete_commands("accounts_spending_limit", date=date)
 
     def add_sub_zero_allowance(self, amount, start_date, end_date, void=False):
         """adds sub-zero allowance to database for the account"""
 
         start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
 
-        get_accounts = "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND " \
-                       "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date,
-                                                                            end_date)
-        update_void = "UPDATE accounts_sub_zero_allowance SET void = 0 WHERE account_id = \"{0}\" AND amount = " \
-                      "\"{1}\" AND start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount,
-                                                                                       start_date, end_date)
-        add_new = "INSERT INTO accounts_sub_zero_allowance VALUES (?, ?, ?, ?, ?, ?)", (self.account_id, amount,
-                                                                                        start_date, end_date,
-                                                                                        1 if void else 0,
-                                                                                        datetime.now())
+        get_accounts = \
+            "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0} AND amount = {1} AND start_date = " \
+            "\"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date, end_date)
+        update_void = \
+            "UPDATE accounts_sub_zero_allowance SET void = 0 WHERE account_id = \"{0}\" AND amount = \"{1}\" AND " \
+            "start_date = \"{2}\" AND end_date = \"{3}\"".format(self.account_id, amount, start_date, end_date)
+        add_new = "INSERT INTO accounts_sub_zero_allowance VALUES (?, ?, ?, ?, ?, ?)", \
+                  (self.account_id, amount, start_date, end_date, 1 if void else 0, datetime.now())
 
         self._run_condition_insert_commands(get_accounts, void, update_void, add_new, "sub zero allowance")
 
     def delete_sub_zero_allowance(self, date):
         """deletes sub-zero allowance from database for the account"""
 
-        self._run_condition_delete_commands("accounts_sub_zero_allowance", self.account_id, date=date)
+        self._run_condition_delete_commands("accounts_sub_zero_allowance", date=date)
 
     def update_details(self, **details):
         """updates details passed (raises an error if an unknown detail is passed)"""

@@ -4,7 +4,9 @@ from datetime import datetime
 
 class Inherit:
     """this class is designed purely for code sharing amongst different classes to reduce code duplication - not
-    intended to be instantiated by itself"""
+    intended to be instantiated by alone"""
+
+    item_id = []  # [item_id_name, item_id]
 
     def _db_open(self, database_name, foreign_keys=True):
         """internal use only - opens connections to database"""
@@ -77,18 +79,19 @@ class Inherit:
 
         self._db_execute(add_new[0], *add_new[1:])
 
-    def _run_condition_delete_commands(self, table, item_id, **primary_key):
+    def _run_condition_delete_commands(self, table, **primary_key):
         """internal use only - runs delete commands for time-bound item conditions (e.g. deleting discount)"""
 
         where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
         # printed sql_command to understand this line
 
-        if not self._check_item_exists("SELECT * FROM {0} WHERE account_id = {1} AND ".format(table, item_id)
+        if not self._check_item_exists("SELECT * FROM {0} WHERE {1} = {2} AND ".format(table, self.item_id[0],
+                                                                                       self.item_id[1])
                                        + where_clause):
             raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
                                "cannot be deleted.")
 
-        sql_command = "UPDATE {0} SET void = 1 WHERE account_id = {1} AND ".format(table, item_id)
+        sql_command = "UPDATE {0} SET void = 1 WHERE {1} = {2} AND ".format(table, self.item_id[0], self.item_id[1])
         sql_command += where_clause
 
         self._db_execute(sql_command)
@@ -110,9 +113,58 @@ class Inherit:
 
         return active_items
 
-    def _get_last_by_date(self, table, **item_id):
+    def _get_last_by_date(self, table):
         """internal use only - gets last item entered into table for current account"""
 
-        return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = "
-                                "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, list(item_id.keys())[0],
-                                                                                     list(item_id.values())[0]))
+        return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = " 
+                                "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, self.item_id[0],
+                                                                                     self.item_id[1]))
+
+    def _check_type_param(self, type_):
+        """internal use only - checks if the type_ parameter is valid"""
+
+        if not isinstance(type_, int):
+            raise ValueError("type_ parameter must be an int object")
+        valid_types = [0, 1]  # pence, percent
+        if type_ not in valid_types:
+            raise ValueError("type_ parameter must be in: {0}".format(valid_types))
+
+    def _add_discount(self, caller, amount, type_, start_date, end_date, void=False):
+        """internal use only - adds new discount to database for the caller item (e.g. account)"""
+
+        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
+        self._check_type_param(type_)
+
+        get_items = "SELECT * FROM {0}s_discounts WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
+                    "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1],
+                                                                         amount, type_, start_date, end_date)
+        update_void = "UPDATE {0}s_discounts SET void = 0 WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
+                      "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1],
+                                                                           amount, type_, start_date, end_date)
+        add_new = ["INSERT INTO {0}s_discounts VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller),
+                   (self.item_id[1], amount, type_, start_date, end_date, 1 if void else 0, datetime.now())]
+
+        self._run_condition_insert_commands(get_items, void, update_void, add_new, "discount")
+
+    def _add_limit(self, caller, amount, per, start_date, end_date, void=False):
+        """internal use only adds item limit to database"""
+
+        start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
+        if not isinstance(per, str):
+            raise ValueError("per parameter must be an str object")
+        elif per not in ['day', 'week', 'month', 'year']:
+            raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
+
+        get_items_cmd = \
+            "SELECT * FROM {0}s_spending_limit WHERE {1} = {2} AND amount = {3} AND per = \"{4}\" AND start_date " \
+            "= \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per, start_date,
+                                                      end_date)
+        update_void_cmd = \
+            "UPDATE {0}s_spending_limit SET void = 0 WHERE {1} = \"{2}\" AND amount = \"{3}\" AND per = \"{4}\" AND " \
+            "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per,
+                                                                 start_date, end_date)
+        add_new_cmd = \
+            "INSERT INTO {0}s_spending_limit VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller), \
+            (self.item_id[1], amount, per, start_date, end_date, 1 if void else 0, datetime.now())
+
+        self._run_condition_insert_commands(get_items_cmd, void, update_void_cmd, add_new_cmd, "spending limit")
