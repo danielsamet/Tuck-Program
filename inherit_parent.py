@@ -21,6 +21,9 @@ class Inherit:
     def _db_execute(self, sql_command, *parameters):
         """internal use only - executes commands on database and returns results"""
 
+        print(sql_command)
+        print(parameters)
+
         connection, cursor = self._db_open("tuck.db")
 
         try:
@@ -114,8 +117,8 @@ class Inherit:
         return active_items
 
     def _get_last_by_date(self, table):
-        """internal use only - gets last item entered into table for current account"""
-
+        """internal use only - gets last item entered into table for current account/product"""
+        print(self.item_id)
         return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = " 
                                 "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, self.item_id[0],
                                                                                      self.item_id[1]))
@@ -135,13 +138,13 @@ class Inherit:
         start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
         self._check_type_param(type_)
 
-        get_items = "SELECT * FROM {0}s_discounts WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
+        get_items = "SELECT * FROM {0}_discounts WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
                     "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1],
                                                                          amount, type_, start_date, end_date)
-        update_void = "UPDATE {0}s_discounts SET void = 0 WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
+        update_void = "UPDATE {0}_discounts SET void = 0 WHERE {1} = {2} AND amount = {3} AND type = {4} AND " \
                       "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1],
                                                                            amount, type_, start_date, end_date)
-        add_new = ["INSERT INTO {0}s_discounts VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller),
+        add_new = ["INSERT INTO {0}_discounts VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller),
                    (self.item_id[1], amount, type_, start_date, end_date, 1 if void else 0, datetime.now())]
 
         self._run_condition_insert_commands(get_items, void, update_void, add_new, "discount")
@@ -156,15 +159,23 @@ class Inherit:
             raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
 
         get_items_cmd = \
-            "SELECT * FROM {0}s_spending_limit WHERE {1} = {2} AND amount = {3} AND per = \"{4}\" AND start_date " \
-            "= \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per, start_date,
-                                                      end_date)
+            "SELECT * FROM {0} WHERE {1} = {2} AND amount = {3} AND per = \"{4}\" AND start_date = \"{5}\" AND " \
+            "end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per, start_date, end_date)
         update_void_cmd = \
-            "UPDATE {0}s_spending_limit SET void = 0 WHERE {1} = \"{2}\" AND amount = \"{3}\" AND per = \"{4}\" AND " \
-            "start_date = \"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per,
-                                                                 start_date, end_date)
+            "UPDATE {0} SET void = 0 WHERE {1} = \"{2}\" AND amount = \"{3}\" AND per = \"{4}\" AND start_date = " \
+            "\"{5}\" AND end_date = \"{6}\"".format(caller, self.item_id[0], self.item_id[1], amount, per, start_date,
+                                                    end_date)
         add_new_cmd = \
-            "INSERT INTO {0}s_spending_limit VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller), \
+            "INSERT INTO {0} VALUES (?, ?, ?, ?, ?, ?, ?)".format(caller), \
             (self.item_id[1], amount, per, start_date, end_date, 1 if void else 0, datetime.now())
 
-        self._run_condition_insert_commands(get_items_cmd, void, update_void_cmd, add_new_cmd, "spending limit")
+        self._run_condition_insert_commands(get_items_cmd, void, update_void_cmd, add_new_cmd, "limit")
+
+    def _update_item(self, table, value, *type_):
+        """internal use only - updates given table with given value (only used on standard items that don't have a
+        delete option)"""
+
+        if not any(isinstance(value, type__) for type__ in type_):
+            raise ValueError("{0} must be an instance of one of the following {1}".format(value, type_))
+
+        self._db_execute("INSERT INTO {0} VALUES (?, ?, ?)".format(table), (self.item_id[1], value, datetime.now()))

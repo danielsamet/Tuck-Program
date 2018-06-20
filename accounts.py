@@ -9,10 +9,13 @@ class Account(Inherit):
     def __init__(self, account_id=None):
         """initialises account object with all attributes"""
 
-        if account_id is not None:
-            self.account_id = account_id
-            self.item_id = self.account_id
+        self.item_id = []
+        self.item_id.append("account_id")
 
+        self.account_id = account_id
+        self.item_id.append(account_id)
+
+        if account_id is not None:
             if not self._check_item_exists("SELECT * FROM accounts WHERE account_id = {0}".format(self.account_id)):
                 raise ValueError("Account does not exist in database")
 
@@ -30,9 +33,7 @@ class Account(Inherit):
             account = [int(), int(), datetime.now(), False]
             f_name, l_name, notes = str(), str(), str()
             discount, spending_limit, sub_zero_allowance = [], [], []
-            self.item_id = account_id
 
-        self.account_id = account_id
         self.f_name = f_name
         self.l_name = l_name
         self.balance = float(account[1])
@@ -57,6 +58,8 @@ class Account(Inherit):
 
         self.account_id, self.f_name, self.l_name, self.notes = self._get_last_id("accounts"), f_name, l_name, notes
 
+        self.item_id.pop(), self.item_id.append(self.account_id)
+
         self._db_execute("INSERT INTO accounts_f_name VALUES (?, ?, ?)",
                          (self.account_id, f_name, datetime.now()))
         self._db_execute("INSERT INTO accounts_l_name VALUES (?, ?, ?)", (self.account_id, l_name, datetime.now()))
@@ -75,7 +78,7 @@ class Account(Inherit):
     def add_discount(self, amount, type_, start_date, end_date, void=False):
         """adds new discount to database for the account"""
 
-        Inherit._add_discount(self, "account", amount, type_, start_date, end_date, void)
+        Inherit._add_discount(self, "accounts", amount, type_, start_date, end_date, void)
 
     def delete_discount(self, date):
         """deletes discount from database for the account"""
@@ -85,7 +88,7 @@ class Account(Inherit):
     def add_spending_limit(self, amount, per, start_date, end_date, void=False):
         """adds spending limit to database for the account"""
 
-        Inherit._add_limit(self, "account", amount, per, start_date, end_date, void)
+        Inherit._add_limit(self, "accounts_spending_limit", amount, per, start_date, end_date, void)
 
     def delete_spending_limit(self, date):
         """deletes spending limit from database for the account"""
@@ -139,15 +142,6 @@ class Account(Inherit):
                 raise KeyError("{0} is not a valid detail name. "
                                "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
 
-    def _update_item(self, table, value, *type_):
-        """internal use only - updates given table with given value (only used on standard items that don't have a
-        delete option)"""
-
-        if not any(isinstance(value, type__) for type__ in type_):
-            raise ValueError("{0} must be an instance of one of the following {1}".format(value, type_))
-
-        self._db_execute("INSERT INTO {0} VALUES (?, ?, ?)".format(table), (self.account_id, value, datetime.now()))
-
     def _check_item_exists(self, cmd, account_check=True):
         """internal use only - overriding parent class to include a check for account_id being None"""
 
@@ -176,10 +170,9 @@ if __name__ == "__main__":  # test commands
     couch = Account()
     couch.add_account("Couch", "Master")
 
-    couch = Account(1)
+    # couch = Account(1)
 
     couch.update_details(f_name="Couche")
-    couch.update_details(l_name="Lord")
     couch.update_details(l_name="Lord")
     couch.update_details(notes="Testing some new designs out.")
     couch.update_details(balance=100)
