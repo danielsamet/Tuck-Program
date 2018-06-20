@@ -215,7 +215,7 @@ class Organiser:
         sql_command.append(
             """
             
-            CREATE TABLE products_discount (
+            CREATE TABLE products_discounts (
                 product_ID INTEGER,
                 amount INTEGER NOT NULL,
                 type VARCHAR(1) NOT NULL,
@@ -223,7 +223,7 @@ class Organiser:
                 end_date DATE,
                 void INTEGER NOT NULL,
                 date DATE PRIMARY KEY,
-                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
             );
             
             """)
@@ -233,11 +233,12 @@ class Organiser:
             CREATE TABLE products_purchase_limit (
                 product_ID INTEGER,
                 amount INTEGER NOT NULL,
+                per VARCHAR(10) NOT NULL,
                 start_date DATE NOT NULL,
                 end_date DATE,
                 void INTEGER NOT NULL,
                 date DATE PRIMARY KEY,
-                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
             );
 
             """)
@@ -254,9 +255,20 @@ class Organiser:
                 end_date DATE,
                 void INTEGER NOT NULL,
                 date DATE PRIMARY KEY,
-                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
             );
             
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_notes (
+                product_ID INTEGER,
+                notes VARCHAR(255),
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
             """)
 
         for command in sql_command:
@@ -316,6 +328,6 @@ class Organiser:
 
 if __name__ == "__main__":
     # Organiser().create_database()
-    # Organiser().show_database_structure()
+    Organiser().show_database_structure()
     Organiser().show_all_tables()
     Organiser().purge_data()
