@@ -152,7 +152,6 @@ class Organiser:
             CREATE TABLE products (
                 product_ID INTEGER PRIMARY KEY,
                 quantity INTEGER,
-                notes VARCHAR(255),
                 date_added DATE NOT NULL,
                 void INTEGER NOT NULL
             );
