@@ -27,7 +27,7 @@ Account:
 		- add_sub_zero_allowance(amount, start_date, end_date)
 		- delete_sub_zero_allowance(date)
 
-		- update_detail(**details)  # calls appropriate method below based on details key name
+		- update_details(**details)  # calls appropriate method below based on details key name
 
 Product:
 	Attribs:
@@ -58,7 +58,7 @@ Product:
 		- add_offer(buy_x, get_y, z_off, start_date, end_date)
 		- delete_offer(date)
 
-		- update_detail(**details)  # calls appropriate method below based on details key name
+		- update_details(**details)  # calls appropriate method below based on details key name
 
 # --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
 
