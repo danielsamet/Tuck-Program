@@ -151,16 +151,67 @@ class Organiser:
             
             CREATE TABLE products (
                 product_ID INTEGER PRIMARY KEY,
-                product_name VARCHAR(30) NOT NULL,
-                supplier VARCHAR(30) NOT NULL,
-                cost_price INTEGER,
-                selling_price INTEGER NOT NULL,
                 quantity INTEGER,
                 notes VARCHAR(255),
                 date_added DATE NOT NULL,
                 void INTEGER NOT NULL
             );
             
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_name (
+                product_ID INTEGER,
+                name VARCHAR(30) NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_supplier (
+                product_ID INTEGER,
+                name VARCHAR(30) NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_cost_price (
+                product_ID INTEGER,
+                price INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_sale_price (
+                product_ID INTEGER,
+                price INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE products_quantity_top_ups (
+                product_ID INTEGER,
+                amount INTEGER NOT NULL,
+                date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
             """)
         sql_command.append(
             """
