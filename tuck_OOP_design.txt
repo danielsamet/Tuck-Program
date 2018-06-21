@@ -60,24 +60,32 @@ Product:
 
 		- update_details(**details)  # calls appropriate method below based on details key name
 
-# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
-
 Transaction:
     Attribs:
         - account
         - product
         - quantity
+        - amount  # final amount after all promotions are accounted for
         - date
         - void
 	Methods:
 		- record_transaction(account, product, quantity)
         - revert_transaction(account, product, date)  # should mark transaction as void to keep history of it
 
-ItemFuncs:  # container for common functions to be inherited by account and product
+Inherit:  # container for common functions to be inherited by account and product
 	Methods:
-		- add_item / delete_item / update_item
-		- add_discount / remove_discount
-		- add_limit / remove_limit
+		- _db_execute(sql_command, *parameters)
+		- _check_item_exists(cmd)
+		- _check_param_validity(amount, start_date, end_date, void=None)
+		- _get_last_id(table)
+		- _run_condition_insert_commands(get_items, void, update_void, add_new, caller)
+		- _run_condition_delete_commands(table, **primary_key)
+		- _get_active_item_condition(cmd, start_date_pos)
+		- _get_last_by_date(table)
+		- _check_type_param(type_)
+		- _add_discount(caller, amount, type_, start_date, end_date, void=False)
+		- _add_limit(caller, amount, per, start_date, end_date, void=False)
+		- _update_item(table, value, *type_)
 
 ItemHistory:  # returns all history using item_id (e.g. account_id) and field name (e.g. balance)
     Methods:
@@ -85,10 +93,13 @@ ItemHistory:  # returns all history using item_id (e.g. account_id) and field na
 
 Organiser:  # temp class for interacting with database
     Methods:
-        - create_database
-        - show_database_structure
+        - create_database()
+        - show_database_structure()
         - show_table(table_name)
-        - purge_data
+        - show_all_tables()
+        - purge_data()
+
+# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
 
 GUI:
 	Methods:
