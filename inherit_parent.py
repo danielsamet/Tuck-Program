@@ -38,8 +38,12 @@ class Inherit:
 
         return results
 
-    def _check_item_exists(self, cmd):
+    def _check_item_exists(self, cmd, item_check=True):
         """internal use only - checks item exists in database"""
+
+        if item_check:
+            if self.item_id[1] is None:
+                return False
 
         if len(self._db_execute(cmd)) == 0:
             return False

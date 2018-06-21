@@ -142,15 +142,6 @@ class Account(Inherit):
                 raise KeyError("{0} is not a valid detail name. "
                                "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
 
-    def _check_item_exists(self, cmd, account_check=True):
-        """internal use only - overriding parent class to include a check for account_id being None"""
-
-        if account_check:
-            if self.account_id is None:
-                return False
-
-        return super()._check_item_exists(cmd)
-
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - overriding parent class to include a check if account exists"""
 

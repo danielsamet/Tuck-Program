@@ -162,14 +162,13 @@ class Product(Inherit):
                 raise KeyError("{0} is not a valid detail name. "
                                "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
 
-    def _check_item_exists(self, cmd, product_check=True):
-        """internal use only - overriding parent class to include a check for account_id being None None"""
+    def _check_param_validity(self, amount, start_date, end_date, void=None):
+        """internal use only - overriding parent class to include a check if product exists"""
 
-        if product_check:
-            if self.product_id is None:
-                return False
+        if not self._check_item_exists("SELECT * FROM products WHERE product_id = {0}".format(self.product_id)):
+            raise ValueError("Product is either set to None or does not exist in database")
 
-        return super()._check_item_exists(cmd)
+        return super()._check_param_validity(amount, start_date, end_date, void)
 
 
 if __name__ == "__main__":
