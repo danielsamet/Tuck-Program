@@ -139,6 +139,7 @@ class Organiser:
                 account_ID INTEGER NOT NULL,
                 product_ID INTEGER NOT NULL,
                 quantity INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
                 date DATE NOT NULL,
                 void INTEGER NOT NULL,
                     FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
