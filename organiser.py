@@ -134,22 +134,6 @@ class Organiser:
         sql_command.append(
             """
             
-            CREATE TABLE transactions (
-                transaction_ID INTEGER PRIMARY KEY,
-                account_ID INTEGER NOT NULL,
-                product_ID INTEGER NOT NULL,
-                quantity INTEGER NOT NULL,
-                amount INTEGER NOT NULL,
-                date DATE NOT NULL,
-                void INTEGER NOT NULL,
-                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID),
-                    FOREIGN KEY (product_ID) REFERENCES accounts(product_ID)
-            );
-            
-            """)
-        sql_command.append(
-            """
-            
             CREATE TABLE products (
                 product_ID INTEGER PRIMARY KEY,
                 quantity INTEGER,
@@ -267,6 +251,32 @@ class Organiser:
                 product_ID INTEGER,
                 notes VARCHAR(255),
                 date DATE PRIMARY KEY,
+                    FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE transactions (
+                transaction_ID INTEGER PRIMARY KEY,
+                account_ID INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                date DATE NOT NULL,
+                void INTEGER NOT NULL,
+                    FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+            );
+
+            """)
+        sql_command.append(
+            """
+
+            CREATE TABLE transactions_products (
+                transaction_ID INTEGER,
+                product_ID INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                    PRIMARY KEY (transaction_ID, product_ID, quantity),
+                    FOREIGN KEY (transaction_ID) REFERENCES transactions(transaction_ID),
                     FOREIGN KEY (product_ID) REFERENCES products(product_ID)
             );
 
