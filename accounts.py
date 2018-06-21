@@ -27,7 +27,7 @@ class Account(Inherit):
             spending_limit = self._get_active_item_condition(
                 "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id), 3)
             sub_zero_allowance = self._get_active_item_condition(
-                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)
+                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)[0]
             notes = self._get_last_by_date("accounts_notes")
         else:
             account = [int(), int(), datetime.now(), False]
@@ -168,10 +168,10 @@ if __name__ == "__main__":  # test commands
     couch.update_details(notes="Testing some new designs out.")
     couch.update_details(balance=100)
 
-    couch.add_discount(100, 1, _date('2018-06-10 14:38:30'), _date('2018-06-30 14:38:30'))
+    couch.add_discount(5, 1, _date('2018-06-10 14:38:30'), _date('2018-06-30 14:38:30'))
     # couch.delete_discount("2018-06-19 14:50:21.371553")
 
-    couch.add_spending_limit(20, "week", _date('2018-06-10 14:38:30'), _date('2018-06-24 14:38:30'))
+    couch.add_spending_limit(20, "transaction", _date('2018-06-10 14:38:30'), _date('2018-06-24 14:38:30'))
     # couch.delete_spending_limit(20, "week", date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
     couch.add_sub_zero_allowance(5, _date('2018-06-11 14:38:30'), _date('2018-06-27 14:38:30'))

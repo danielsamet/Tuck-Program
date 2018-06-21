@@ -21,9 +21,6 @@ class Inherit:
     def _db_execute(self, sql_command, *parameters):
         """internal use only - executes commands on database and returns results"""
 
-        print(sql_command)
-        print(parameters)
-
         connection, cursor = self._db_open("tuck.db")
 
         try:
@@ -115,14 +112,14 @@ class Inherit:
             if item[-2] == 0:  # if not void
                 if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now() \
                         < datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
-                    active_items.append(list(item[:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
-                    # method to concatenate when slice is int
+                    active_items.append(list(item[1:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
+                    # method to concatenate when slice is int  # the concatenation is simply for the removal of
+                    # unnecessary date
 
         return active_items
 
     def _get_last_by_date(self, table):
         """internal use only - gets last item entered into table for current account/product"""
-        print(self.item_id)
         return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = " 
                                 "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, self.item_id[0],
                                                                                      self.item_id[1]))
@@ -159,7 +156,7 @@ class Inherit:
         start_date, end_date = self._check_param_validity(amount, start_date, end_date, void)
         if not isinstance(per, str):
             raise ValueError("per parameter must be an str object")
-        elif per not in ['day', 'week', 'month', 'year']:
+        elif per not in ['transaction', 'day', 'week', 'month', 'year']:
             raise ValueError("per parameter must be one of the following options: ['day', 'week', 'month', 'year']")
 
         get_items_cmd = \
