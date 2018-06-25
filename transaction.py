@@ -59,7 +59,7 @@ class Transaction(Inherit):
                 if purchase_limit[1] == "transaction":
                     if quantity > purchase_limit[0]:
                         raise ValueError("There is a purchase limit of \"{0}\" on product \"{1}\""
-                                         "".format(purchase_limit, product.name))
+                                         "".format(purchase_limit[0], product.name))
                 # must add further if statements
 
             amount = product.selling_price * quantity
@@ -86,11 +86,16 @@ class Transaction(Inherit):
 
         # check spending limit
         for spending_limit in account.spending_limit:
+            error_msg = "Total payable is over the account spending limit of {0} per {1} by ".format(spending_limit[0], spending_limit[1])
             if spending_limit[1] == "transaction":
                 if spending_limit[0] < total_to_pay:
-                    raise ValueError("Total payable is over the account spending limit by {0}"
-                                     "".format(total_to_pay - account.spending_limit))
-            # must add further if statements
+                    raise ValueError(error_msg + "{0}".format(total_to_pay - account.spending_limit[0]))
+            elif spending_limit[1] in ["day", "week", "month", "year"]:
+                period_transactions = self._db_execute("SELECT amount FROM transactions WHERE account_id = {0} AND "
+                                                       "date > date(\"now\", \"-1 {1}\")".format(1, spending_limit[1]))
+                period_transactions = [transaction[0] for transaction in period_transactions]
+                if sum(period_transactions) + total_to_pay > spending_limit[0]:
+                    raise ValueError(error_msg + "{0}".format(period_transactions + total_to_pay - spending_limit[0]))
 
         # check sub zero allowance
         new_balance = account.balance - total_to_pay
