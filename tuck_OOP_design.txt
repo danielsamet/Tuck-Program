@@ -99,14 +99,11 @@ Organiser:  # temp class for interacting with database
         - show_all_tables()
         - purge_data()
 
-# --------------------------------------------- BELOW THIS LINE HAS NOT YET BEEN UPDATED
-
 GUI:
 	Methods:
-		- get_all_accounts
-		- get_all_products
-		- get_account
-		- get_product
 		[- navigatable menus]
-		- import_accounts
-		- import_products
+		- get_accounts()
+		- get_products()
+		- get_transactions(account_ID=None, product_ID=None)
+		- import_accounts(address)
+		- import_products(address)
