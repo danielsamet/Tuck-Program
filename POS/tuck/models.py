@@ -15,19 +15,25 @@ class ItemCondition(models.Model):
     class Meta:
         abstract = True
 
-    def __str__(self):
-        return "{0} from {1} till {2}".format(self.amount, self.start_date, self.end_date)
-
 
 class Discount(ItemCondition):
-    type_ = models.SmallIntegerField(verbose_name="type", default=0, choices=((0, "%"), (1, "£")))
+    choices = ((0, "%"), (1, "£"))
+    _type = models.SmallIntegerField(verbose_name="type", default=0, choices=choices)
+
+    def __str__(self):
+        _type = self.choices[[x[0] for x in self.choices].index(self._type)][1]
+        return "{0}{1} off".format(_type if _type != "%" else self.amount, _type if _type == "%" else self.amount)
 
     class Meta:
         abstract = True
 
 
 class Limit(ItemCondition):
-    per = models.SmallIntegerField(default="transaction", choices=("transaction", "day", "week", "month", "year"))
+    choices = ((0, "transaction"), (1, "day"), (2, "week"), (3, "month"), (4, "year"))
+    per = models.SmallIntegerField(default="transaction", choices=choices)
+
+    def __str__(self):
+        return "£{0} per {1}".format(self.amount, self.choices[[x[0] for x in self.choices].index(self.per)][1])
 
     class Meta:
         abstract = True
@@ -35,11 +41,11 @@ class Limit(ItemCondition):
 
 class Item(models.Model):
     item_id = vars()
-    date_added = models.DateTimeField(primary_key=True, auto_now_add=True)
+    date_added = models.DateTimeField(auto_now_add=True)
     void = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.item_id
+        return str(self.item_id)
 
     class Meta:
         abstract = True
@@ -56,8 +62,11 @@ class Note(models.Model):
 
 
 class Account(Item):
-    item_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, verbose_name="account id")
+    item_id = models.UUIDField(default=uuid.uuid4, editable=False, verbose_name="account id")
     balance = models.FloatField(default=0)
+
+    class Meta:
+        verbose_name_plural = "Accounts"
 
 
 class AccountItem(models.Model):
@@ -93,7 +102,7 @@ class AccountTopUp(AccountItem):
         return self.amount
 
 
-class AccountItemCondition(ItemCondition):
+class AccountItemCondition(models.Model):
     account_id = models.ForeignKey(Account, on_delete=models.CASCADE)
 
     class Meta:
@@ -101,15 +110,21 @@ class AccountItemCondition(ItemCondition):
 
 
 class AccountDiscount(AccountItemCondition, Discount):
-    pass
+    class Meta:
+        verbose_name_plural = "Account Discounts"
 
 
 class AccountSpendingLimit(AccountItemCondition, Limit):
-    pass
+    class Meta:
+        verbose_name_plural = "Account Spending Limits"
 
 
-class AccountSubZeroAllowance(AccountItemCondition):
-    pass
+class AccountSubZeroAllowance(AccountItemCondition, ItemCondition):
+    def __str__(self):
+        return "£{0}".format(self.amount)
+
+    class Meta:
+        verbose_name_plural = "Account Sub Zero Allowances"
 
 
 class AccountNote(Note, AccountItem):
@@ -118,6 +133,9 @@ class AccountNote(Note, AccountItem):
 
 class Product(Item):
     item_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, verbose_name="product id")
+
+    class Meta:
+        verbose_name_plural = "Products"
 
 
 class ProductItem(models.Model):
@@ -129,7 +147,7 @@ class ProductItem(models.Model):
 
 
 class ProductName(ProductItem):
-    name = models.CharField()
+    name = models.CharField(max_length=30)
 
     def __str__(self):
         return self.name
@@ -168,7 +186,7 @@ class ProductQuantityTopUp(ProductItem):
         return self.amount
 
 
-class ProductItemCondition(ItemCondition):
+class ProductItemCondition(models.Model):
     product_id = models.ForeignKey(Product, on_delete=models.CASCADE)
 
     class Meta:
@@ -176,11 +194,13 @@ class ProductItemCondition(ItemCondition):
 
 
 class ProductDiscount(ProductItemCondition, Discount):
-    pass
+    class Meta:
+        verbose_name_plural = "Product Discounts"
 
 
 class ProductPurchaseLimit(ProductItemCondition, Limit):
-    pass
+    class Meta:
+        verbose_name_plural = "Product Purchase Limit"
 
 
 class ProductOffer(ProductItemCondition, Discount):
@@ -191,10 +211,12 @@ class ProductOffer(ProductItemCondition, Discount):
     z_off = models.FloatField()
 
     def __str__(self):
-        return "buy {0} get {1} {2}{3} off from {4} till {5}".format(self.buy_x, self.get_y,
-                                                                     self.type_ if self.type_ != "%" else self.z_off,
-                                                                     self.type_ if self.type_ == "%" else self.z_off,
-                                                                     self.start_date, self.end_date)
+        _type = self.choices[[x[0] for x in self.choices].index(self._type)][1]
+        return "buy {0} get {1} {2}{3} off".format(self.buy_x, self.get_y, _type if _type != "%" else self.z_off,
+                                                   _type if _type == "%" else self.z_off)
+
+    class Meta:
+        verbose_name_plural = "Product Offers"
 
 
 class ProductNote(Note, ProductItem):
@@ -203,7 +225,7 @@ class ProductNote(Note, ProductItem):
 
 class Transaction(Item):
     transaction_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    item_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, verbose_name="account id")
+    item_id = models.UUIDField(default=uuid.uuid4, editable=False, verbose_name="account id")
     amount = models.FloatField()
 
     def __str__(self):
