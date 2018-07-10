@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from db_interface import *
 from OLD import date_picker
 from datetime import datetime, timedelta
+from math import ceil
 from accounts import Account
 from products import Product
 
@@ -56,6 +57,7 @@ class GUI:
         estyle.configure("EntryStyle.TEntry",
                          fieldbackground="grey85")
 
+        self.accounts_page, self.products_page = IntVar(), IntVar()
         self.main_menu()
 
         root.mainloop()
@@ -95,6 +97,8 @@ class GUI:
         Grid.columnconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 1, weight=1)
         Grid.rowconfigure(self.main_frame, 0, weight=1)
 
+        self.accounts_page.set(1), self.products_page.set(1)
+
     def accounts(self):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.setup())
@@ -116,6 +120,12 @@ class GUI:
         col, row = int(), int()
         Grid.rowconfigure(account_frame, row, weight=1)
         Grid.columnconfigure(account_frame, col, weight=1)
+
+        total_accounts, page, page_limit = len(accounts), self.accounts_page.get(), 35
+        total_pages = ceil(total_accounts/page_limit)
+        accounts = accounts[(page - 1) * page_limit:page * page_limit] if total_accounts >= page * page_limit \
+            else accounts[(page - 1) * page_limit:]
+
         for account in accounts:
             Button(account_frame, text=account[1] + " " + account[2], bg="goldenrod", font=font, width=20, height=2,
                    command=lambda account_info=account: self.account(account_info=account_info))\
@@ -132,11 +142,16 @@ class GUI:
         import_btn.grid(row=0, column=0)
         add_btn = Button(account_actions_frame, text="ADD", font=font, bg=bg, width=12, command=lambda: self.account())
         add_btn.grid(row=0, column=1)
-        previous_btn = Button(account_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12)
+        previous_btn = Button(account_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12,
+                              command=lambda: self.combine_funcs(self.accounts_page.set(page-1), self.accounts())
+                              if page > 1 else None)
         previous_btn.grid(row=0, column=2)
-        page_lbl = Label(account_actions_frame, text="Page 1 of 1", font=font, bg=bg, width=12)
+        page_lbl = Label(account_actions_frame, text="Page {0} of {1}".format(page, total_pages),
+                         font=font, bg=bg, width=12)
         page_lbl.grid(row=0, column=3)
-        next_btn = Button(account_actions_frame, text="NEXT", font=font, bg=bg, width=12)
+        next_btn = Button(account_actions_frame, text="NEXT", font=font, bg=bg, width=12,
+                          command=lambda: self.combine_funcs(self.accounts_page.set(page + 1), self.accounts())
+                          if page < total_pages else None)
         next_btn.grid(row=0, column=4)
 
         [Grid.columnconfigure(account_actions_frame, i, weight=1) for i in range(5)]
@@ -155,7 +170,7 @@ class GUI:
         if account_info is not None:
             account = Account(account_id=account_info[0])
 
-        font1, font2 = ("Calibri", 20, "bold"), ("Calibri", 20)
+        font1, font2 = ("Calibri", 18, "bold"), ("Calibri", 18)
         row = int()
 
         def _create_basic_frame(lbl_txt):
@@ -177,153 +192,11 @@ class GUI:
 
             return centre_frame
 
-        def add_datetime_entries(frame_, date, hour, min_):
-            date_picker.Datepicker(frame_, datevar=date, font=font2, entrywidth=10,
-                                   entrystyle="EntryStyle.TEntry").grid(row=0, column=1)
-            hours = OptionMenu(frame_, hour, *[str("{0:02d}".format(num)) for num in range(0, 24)])
-            hours.config(font=font2)
-            hours.nametowidget(hours.menuname).configure(font=("Calibri", 16))
-            hours.grid(row=0, column=2)
-            mins = OptionMenu(frame_, min_, *[str("{0:02d}".format(num)) for num in range(0, 60)])
-            mins.config(font=font2)
-            mins.nametowidget(hours.menuname).configure(font=("Calibri", 16))
-            mins.grid(row=0, column=3)
-
-        def add_from(from_frame, _from, from_date, from_hour, from_min):
-            [widget.destroy() for widget in from_frame.winfo_children()]
-
-            Label(from_frame, text="From {}".format(_from), font=font2).grid(row=0, column=0)
-            if _from is "":
-                from_hour.set("00"), from_min.set("00")
-                add_datetime_entries(from_frame, from_date, from_hour, from_min)
-
-        def add_until(until, until_frame, length, _for, until_date, until_hour, until_min):
-            [widget.destroy() for widget in until_frame.winfo_children()]
-
-            Label(until_frame, text="{}".format(
-                until if until == "Indefinitely" else "For A Duration Of " if until == "time" else "Until"),
-                  font=font2).grid(row=0, column=0)
-            if until == "time":
-                Entry(until_frame, textvariable=length, font=font2, width=2).grid(row=0, column=1)
-                _for.set("day(s)")
-                _opt_menu = OptionMenu(until_frame, _for, "hour(s)", "day(s)", "week(s)", "month(s)", "year(s)")
-                _opt_menu.config(font=font2)
-                _opt_menu.nametowidget(_opt_menu.menuname).configure(font=font2)
-                _opt_menu.grid(row=0, column=2)
-            elif until == "until":
-                until_hour.set("00"), until_min.set("00")
-                add_datetime_entries(until_frame, until_date, until_hour, until_min)
-
-        def _add_time_condition(frame, from_date, from_hour, from_min, until_date, until_hour, until_min, length, _for,
-                                level=1):
-            from_bg, until_bg = "firebrick1", "SlateBlue1"
-
-            def add_from_conditions():
-                from_btn.destroy()
-                from_frame = Frame(frame)
-                from_frame.grid(row=0, column=0, sticky=W)
-                Button(from_frame, text="Now", font=font2, command=lambda: add_from(from_frame, "Now", from_date,
-                                                                                    from_hour, from_min), bg=from_bg
-                       ).grid(row=0, column=0)
-                Button(from_frame, text="Specific Date/Time", font=font2,
-                       command=lambda: add_from(from_frame, "", from_date, from_hour, from_min),
-                       bg=from_bg).grid(row=0, column=1)
-                Button(frame, text="Cancel", font=font2,
-                       command=lambda: _add_time_condition(frame, from_date, from_hour, from_min, until_date,
-                                                           until_hour, until_min, length, _for)).grid(row=0, column=2)
-
-            def add_until_conditions():
-                until_btn.destroy()
-                until_frame = Frame(frame)
-                until_frame.grid(row=0, column=1, sticky=W)
-                Button(until_frame, text="Indefinitely", font=font2, bg=until_bg,
-                       command=lambda: add_until("Indefinitely", until_frame, length, _for, until_date, until_hour,
-                                                 until_min)).grid(row=0, column=0)
-                Button(until_frame, text="For Given Time", font=font2, bg=until_bg,
-                       command=lambda: add_until("time", until_frame, length, _for, until_date, until_hour, until_min)
-                       ).grid(row=0, column=1)
-                Button(until_frame, text="Until Given Date", font=font2, bg=until_bg,
-                       command=lambda: add_until("until", until_frame, length, _for, until_date, until_hour, until_min)
-                       ).grid(row=0, column=2)
-                Button(frame, text="Cancel", font=font2,
-                       command=lambda: _add_time_condition(frame, from_date, from_hour, from_min, until_date,
-                                                           until_hour, until_min, length, _for)).grid(row=0, column=2)
-
-            if level == 0:
-                self._empty_frame(frame)
-                Button(frame, text="Add Time Condition", font=font2,
-                       command=lambda: _add_time_condition(frame, from_date, from_hour, from_min, until_date,
-                                                           until_hour, until_min, length, _for)).grid(row=0, column=0)
-            else:
-                self._empty_frame(frame)
-                from_btn = Button(frame, text="From", font=font2, bg=from_bg,
-                                  command=lambda: add_from_conditions())
-                from_btn.grid(row=0, column=0)
-                until_btn = Button(frame, text="Until", font=font2, bg=until_bg,
-                                   command=lambda: add_until_conditions())
-                until_btn.grid(row=0, column=1, padx=30)
-                cancel = Button(frame, text="Cancel", font=font2,
-                                command=lambda: _add_time_condition(frame, from_date, from_hour, from_min, until_date,
-                                                               until_hour, until_min, length, _for, level=0))
-                cancel.grid(row=0, column=2)
-
         def top_up():
             try:
                 budget_amount.set("£{0:.2f}".format(float(budget_amount.get()[1:]) + float(top_up_amount.get())))
             except ValueError:
                 messagebox.showerror("Top Up Error", "Amount must be a valid number.")
-
-        def calc_dates(dates, length, _for):
-
-            from_date = dates[0].get() + " {0}:{1}:00".format(dates[1].get(), dates[2].get()) \
-                if dates[0].get() != "" else str(datetime.now())[:19]
-
-            if dates[3].get() == "":
-                if length.get() != "":
-                    fors = {"hour(s)": timedelta(hours=1), "day(s)": timedelta(days=1),
-                            "week(s)": timedelta(weeks=1), "month(s)": timedelta(weeks=4),
-                            "year(s)": timedelta(weeks=52)}
-                    print(length.get())
-                    print(_for.get())
-                    period = int(length.get()) * fors[_for.get()]
-                    until_date = str(datetime.strptime(from_date, "%Y-%m-%d %H:%M:%S") + period)
-                else:
-                    until_date = ""
-            else:
-                until_date = dates[3].get() + " {0}:{1}:00".format(dates[4].get(), dates[5].get())
-
-            return from_date, until_date
-
-        def _add_conditioned_item(condition_frame, active_conditions, active_conditions_btn, item_conditions_frame,
-                                  time_condition_frame, dates, length, _for, *item_vars, discount_=False, limit_=False):
-            def new_condition():
-                item_conditions_frame.grid(row=0, column=1)
-
-                _add_time_condition(time_condition_frame, *dates, length, _for, level=0)
-
-                add_condition_btn.config(
-                    command=lambda: self.combine_funcs(
-                        active_conditions.append((*[var.get() for var in item_vars], *calc_dates(dates, length, _for))),
-                        active_conditions_btn.config(text="{0} Active".format(len(active_conditions)), state=NORMAL),
-                        cancel_new_condition())
-                    if item_vars[0].get() != "" else messagebox.showerror("Null Error", "Amount cannot be left empty"))
-                add_condition_btn.grid(row=0, column=2)
-                cancel_condition_add.grid(row=0, column=3)
-
-            def cancel_new_condition():
-                item_conditions_frame.grid_forget()
-                cancel_condition_add.grid_forget()
-                add_condition_btn.config(command=lambda: new_condition())
-                add_condition_btn.grid(row=0, column=1)
-
-            active_conditions_btn.config(text="None Active", state=DISABLED, font=font1,
-                                         command=lambda: display_conditions(active_conditions, discount_=discount_,
-                                                                            limit_=limit_))
-            active_conditions_btn.grid(row=0, column=0)
-            add_condition_btn = Button(condition_frame, text="Add", font=font1, command=lambda: new_condition())
-            add_condition_btn.grid(row=0, column=1)
-            cancel_condition_add = Button(condition_frame, text="Cancel", font=font1,
-                                          command=lambda: cancel_new_condition())
 
         def save_account(result):
             nonlocal account
@@ -401,41 +274,67 @@ class GUI:
 
             return True, ""
 
-        def display_conditions(conditions, discount_=False, limit_=False):
-            self._frame_reset(self.main_frame)
-            self.back_btn.config(command=lambda: self.account(account_info))
+        def display_conditions(conditions, page=1, discount_=False, limit_=False):
 
-            # titles
-            Label(self.main_frame, text="Amount", font=font1).grid(row=0, column=0, padx=10)
-            if discount_ or limit_:
-                Label(self.main_frame, text="Per" if limit_ else "Type", font=font1).grid(row=0, column=1, padx=10)
-            Label(self.main_frame, text="Active From", font=font1).grid(row=0, column=2, padx=10)
-            Label(self.main_frame, text="Active Until", font=font1).grid(row=0, column=3, padx=10)
+            def add_datetime_entries(frame_, date, hour, min_):
+                date_picker.Datepicker(frame_, datevar=date, font=font2, entrywidth=10,
+                                       entrystyle="EntryStyle.TEntry").grid(row=0, column=1)
+                hours = OptionMenu(frame_, hour, *[str("{0:02d}".format(num)) for num in range(0, 24)])
+                hours.config(font=font2)
+                hours.nametowidget(hours.menuname).configure(font=("Calibri", 16))
+                hours.grid(row=0, column=2)
+                mins = OptionMenu(frame_, min_, *[str("{0:02d}".format(num)) for num in range(0, 60)])
+                mins.config(font=font2)
+                mins.nametowidget(hours.menuname).configure(font=("Calibri", 16))
+                mins.grid(row=0, column=3)
 
-            row_ = int(1)
+            def add_from(from_frame, _from, from_date, from_hour, from_min):
+                [widget.destroy() for widget in from_frame.winfo_children()]
 
-            # items
-            for condition in conditions:
-                Label(self.main_frame, text=condition[0], font=font2).grid(row=row_, column=0, padx=10)
-                if discount_ or limit_:
-                    Label(self.main_frame, text=condition[1], font=font2).grid(row=row_, column=1, padx=10)
-                    from_date, until_date = condition[2], condition[3]
+                Label(from_frame, text="From {}".format(_from), font=font2).grid(row=0, column=0)
+                if _from is "":
+                    from_hour.set("00"), from_min.set("00")
+                    add_datetime_entries(from_frame, from_date, from_hour, from_min)
+
+            def add_until(until, until_frame, length, _for, until_date, until_hour, until_min):
+                [widget.destroy() for widget in until_frame.winfo_children()]
+
+                Label(until_frame, text="{}".format(
+                    until if until == "Indefinitely" else "For A Duration Of " if until == "time" else "Until"),
+                      font=font2).grid(row=0, column=0)
+                if until == "time":
+                    Entry(until_frame, textvariable=length, font=font2, width=2).grid(row=0, column=1)
+                    _for.set("day(s)")
+                    _opt_menu = OptionMenu(until_frame, _for, "hour(s)", "day(s)", "week(s)", "month(s)", "year(s)")
+                    _opt_menu.config(font=font2)
+                    _opt_menu.nametowidget(_opt_menu.menuname).configure(font=font2)
+                    _opt_menu.grid(row=0, column=2)
+                elif until == "until":
+                    until_hour.set("00"), until_min.set("00")
+                    add_datetime_entries(until_frame, until_date, until_hour, until_min)
+
+            def calc_dates(dates, length, _for):
+
+                from_date = dates[0].get() + " {0}:{1}:00".format(dates[1].get(), dates[2].get()) \
+                    if dates[0].get() != "" else str(datetime.now())[:19]
+
+                if dates[3].get() == "":
+                    if length.get() != "":
+                        fors = {"hour(s)": timedelta(hours=1), "day(s)": timedelta(days=1),
+                                "week(s)": timedelta(weeks=1), "month(s)": timedelta(weeks=4),
+                                "year(s)": timedelta(weeks=52)}
+                        period = int(length.get()) * fors[_for.get()]
+                        until_date = str(datetime.strptime(from_date, "%Y-%m-%d %H:%M:%S") + period)
+                    else:
+                        until_date = ""
                 else:
-                    from_date, until_date = condition[1], condition[2]
-                until_date = "Indefinitely" if until_date == "" or until_date == 0 else until_date
-                Label(self.main_frame, text=from_date, font=font2).grid(row=row_, column=2, padx=10)
-                Label(self.main_frame, text=until_date, font=font2).grid(row=row_, column=3, padx=10)
+                    until_date = dates[3].get() + " {0}:{1}:00".format(dates[4].get(), dates[5].get())
 
-                Button(self.main_frame, text="DELETE", bg='red', font=font1,
-                       command=lambda condition_=condition: self.combine_funcs(
-                           account.delete_discount(condition_[-1]) if discount_
-                           else account.delete_spending_limit(condition_[-1]) if limit_
-                           else account.delete_sub_zero_allowance(condition_[-1]),
-                           conditions.remove(condition_), display_conditions(conditions, discount_=discount_,
-                                                                             limit_=limit_))
-                       ).grid(row=row_, column=4, sticky=E + W)
+                return from_date, until_date
 
-                row_ += 1
+            def call_yourself(page_=page):
+                display_conditions(get_discounts() if discount_ else get_limits() if limit_ else get_allowances(),
+                                   page=page_, discount_=discount_, limit_=limit_)
 
             def add_from_():
                 self._empty_frame(from_frame)
@@ -470,45 +369,131 @@ class GUI:
                            Button(until_frame, text="Reset", font=font2, command=lambda: add_until_()
                                   ).grid(row=0, column=4))).grid(row=0, column=2)
 
+            self._frame_reset(self.main_frame)
+            self.back_btn.config(command=lambda: self.account(account_info))
+
+            main_frame = Frame(self.main_frame)
+            main_frame.grid(row=0, column=0, sticky=N + S + E + W)
+            # titles
+            Label(main_frame, text="Amount", font=font1).grid(row=0, column=0, padx=10, sticky=N)
+            if discount_ or limit_:
+                Label(main_frame, text="Per" if limit_ else "Type", font=font1).grid(row=0, column=1, padx=10, sticky=N)
+            Label(main_frame, text="Active From", font=font1).grid(row=0, column=2, padx=10, sticky=N)
+            Label(main_frame, text="Active Until", font=font1).grid(row=0, column=3, padx=10, sticky=N)
+
+            row_ = int(1)
+
+            # list items
+            total_conditions, condition_limit = len(conditions), 10
+            conditions = conditions[(page - 1) * condition_limit:page * condition_limit] \
+                if total_conditions >= page * condition_limit else conditions[(page - 1) * condition_limit:]
+
+            for condition in conditions:
+                Label(main_frame, text=condition[0], font=font2).grid(row=row_, column=0, padx=10, sticky=N)
+                if discount_ or limit_:
+                    Label(main_frame, text=condition[1], font=font2).grid(row=row_, column=1, padx=10, sticky=N)
+                    from_date, until_date = condition[2], condition[3]
+                else:
+                    from_date, until_date = condition[1], condition[2]
+                until_date = "Indefinitely" if until_date == "" or until_date == 0 else until_date
+                Label(main_frame, text=from_date, font=font2).grid(row=row_, column=2, padx=10, sticky=N)
+                Label(main_frame, text=until_date, font=font2).grid(row=row_, column=3, padx=10, sticky=N)
+
+                Button(main_frame, text="DELETE", bg='red', font=font1,
+                       command=lambda condition_=condition: self.combine_funcs(
+                           account.delete_discount(condition_[-1]) if discount_
+                           else account.delete_spending_limit(condition_[-1]) if limit_
+                           else account.delete_sub_zero_allowance(condition_[-1]),
+                           display_conditions(get_discounts() if discount_ else get_limits() if limit_
+                                              else get_allowances(), discount_=discount_, limit_=limit_))
+                       ).grid(row=row_, column=4, sticky=E + W + N)
+
+                row_ += 1
+
             # new item
             item_vars = list()
+            new_item_frame = Frame(self.main_frame)
+            new_item_frame.grid(row=1, column=0, sticky=E + W + S)
 
             from_bg, until_bg = "firebrick1", "SlateBlue1"
             amount = StringVar()
             item_vars.append(amount)
-            Entry(self.main_frame, font=font2, textvariable=amount, width=6).grid(row=row_, column=0)
+            Entry(main_frame, font=font2, textvariable=amount, width=6).grid(row=row_, column=0, sticky=S, pady=10)
 
             if discount_ or limit_:
                 if discount_:
-                    discount_type_, discount_drop_down_ = self.create_type_dropdown(self.main_frame)
-                    discount_drop_down_.grid(row=row_, column=1, padx=10)
+                    discount_type_, discount_drop_down_ = self.create_type_dropdown(main_frame)
+                    discount_drop_down_.grid(row=row_, column=1, padx=10, sticky=S)
                     item_vars.append(discount_type_)
                 else:
-                    limit_per_, limit_drop_down_ = self.create_limit_drop_down(self.main_frame)
+                    limit_per_, limit_drop_down_ = self.create_limit_drop_down(main_frame)
                     item_vars.append(limit_per_)
-                    limit_drop_down_.grid(row=row_, column=1, padx=10)
+                    limit_drop_down_.grid(row=row_, column=1, padx=10, sticky=S)
 
-            from_frame = Frame(self.main_frame)
-            from_frame.grid(row=row_, column=2)
+            from_frame = Frame(main_frame)
+            from_frame.grid(row=row_, column=2, sticky=S)
             froms = [StringVar(), StringVar(), StringVar()]
             add_from_()
 
-            until_frame = Frame(self.main_frame)
-            until_frame.grid(row=row_, column=3)
+            until_frame = Frame(main_frame)
+            until_frame.grid(row=row_, column=3, sticky=S)
             untils = [StringVar(), StringVar(), StringVar()]
             length, _for = StringVar(), StringVar()
             add_until_()
 
-            Button(self.main_frame, text="ADD", bg='orange', font=font1, command=lambda: self.combine_funcs(
-                conditions.append((*(var.get() for var in item_vars), *calc_dates([*froms, *untils], length, _for))),
-                account.add_discount(5, 1, datetime.strptime(conditions[-1][-2], "%Y-%m-%d %H:%M:%S"),
-                                     datetime.strptime(conditions[-1][-1], "%Y-%m-%d %H:%M:%S")
-                                     if conditions[-1][-1] != "" else ""),
-                display_conditions(conditions, discount_=discount_, limit_=limit_))
-                if amount.get() != "" else messagebox.showerror("Null Error", "Amount cannot be left empty")
-                   ).grid(row=row_, column=4, sticky=E + W)
+            def get_formmated_dates():
+                return [datetime.strptime(date, "%Y-%m-%d %H:%M:%S") if date != "" else date
+                        for date in calc_dates([*froms, *untils], length, _for)]
 
-            [Grid.columnconfigure(self.main_frame, i, weight=1) for i in range(5)]
+            Button(main_frame, text="ADD", bg='orange', font=font1,
+                   command=lambda: self.combine_funcs(
+                       account.add_discount(float(amount.get()), 1 if discount_type_.get() == "£" else 0,
+                                            *get_formmated_dates())
+                       if discount_ else
+                       account.add_spending_limit(float(amount.get()), limit_per_.get(), *get_formmated_dates())
+                       if limit_ else
+                       account.add_sub_zero_allowance(float(amount.get()), *get_formmated_dates()), call_yourself())
+                   if amount.get() != "" else messagebox.showerror("Null Error", "Amount cannot be left empty")
+                   ).grid(row=row_, column=4, sticky=S + E + W)
+
+            Grid.columnconfigure(self.main_frame, 0, weight=1)
+            Grid.rowconfigure(self.main_frame, 0, weight=1)
+            [Grid.columnconfigure(main_frame, i, weight=1) for i in range(5)]
+            Grid.rowconfigure(main_frame, row_, weight=1)
+
+            page_scrolling_frame = Frame(self.main_frame)
+            page_scrolling_frame.grid(row=2, column=0, sticky=S)
+
+            total_pages = ceil(total_conditions/condition_limit)
+            bg = "sandy brown"
+
+            if total_pages > 1:
+                Button(page_scrolling_frame, text="Previous", font=font2, bg=bg,
+                       command=lambda: call_yourself(page-1) if page > 1 else None).grid(row=0, column=0)
+                Button(page_scrolling_frame, text="Next", font=font2, bg=bg,
+                       command=lambda: call_yourself(page+1) if page < total_pages else None).grid(row=0, column=2)
+
+            Label(page_scrolling_frame, text="Page {0} of {1}".format(page, total_pages),
+                  font=font2).grid(row=0, column=1, padx=20)
+
+        def get_discounts():
+            discounts_ = list()
+            for discount in get_account_conditions(account_id=account_info[0], discount=True):
+
+                discounts_.append((discount[1], "%" if discount[2] == 0 else "£", *discount[3:]))
+            return discounts_
+
+        def get_limits():
+            limits_ = list()
+            for limit in get_account_conditions(account_id=account_info[0], spending_limit=True):
+                limits_.append((limit[1:]))
+            return limits_
+
+        def get_allowances():
+            allowances_ = list()
+            for allowance in get_account_conditions(account_id=account_info[0], sub_zero_allowance=True):
+                allowances_.append((allowance[1:]))
+            return allowances_
 
         # account first name
         f_name_frame = _create_basic_frame("First Name")
@@ -536,81 +521,24 @@ class GUI:
 
         # account discounts
         active_discounts = list()
-        discount_amount = StringVar()
-        discount_dates = list()
-        [discount_dates.append(StringVar()) for _ in range(6)]
-        discount_length, discount_for = StringVar(), StringVar()
-
-        discount_frame = _create_basic_frame("Discount")
-        add_discount_frame = Frame(discount_frame)
-
-        discount_type, discount_drop_down = self.create_type_dropdown(add_discount_frame)
-        # discount_amount.set("0.00")
-        discount_entry = Entry(add_discount_frame, font=("Calibri", 20), textvariable=discount_amount, width=6)
-        discount_time_condition_frame = Frame(add_discount_frame)
-
-        discount_drop_down.grid(row=0, column=1, sticky=W)
-        discount_entry.grid(row=0, column=2, sticky=W, padx=10)
-        discount_time_condition_frame.grid(row=0, column=3, sticky=W)
-
-        active_discounts_btn = Button(discount_frame)
-        _add_conditioned_item(discount_frame, active_discounts, active_discounts_btn, add_discount_frame,
-                              discount_time_condition_frame, discount_dates, discount_length, discount_for,
-                              discount_amount, discount_type, discount_=True)
+        active_discounts_btn = Button(_create_basic_frame("Discount"))
+        active_discounts_btn.config(text="None Active", state=NORMAL, font=font1,
+                                    command=lambda: display_conditions(active_discounts, discount_=True))
+        active_discounts_btn.grid(row=0, column=0)
 
         # account spending limit
         active_limits = list()
-        limit_amount = StringVar()
-        limit_dates = list()
-        [limit_dates.append(StringVar()) for _ in range(6)]
-        limit_length, limit_for = StringVar(), StringVar()
-        # limit_for.set("day")
-        limit_per = StringVar()
-        limit_per.set("day")
+        active_limits_btn = Button(_create_basic_frame("Spending Limit"))
+        active_limits_btn.config(text="None Active", state=NORMAL, font=font1,
+                                 command=lambda: display_conditions(active_limits, limit_=True))
+        active_limits_btn.grid(row=0, column=0)
 
-        spending_limit_frame = _create_basic_frame("Spending Limit (£)")
-
-        add_spending_limit_frame = Frame(spending_limit_frame)
-
-        # limit_amount.set("0.00")
-        limit_entry = Entry(add_spending_limit_frame, font=("Calibri", 20), textvariable=limit_amount, width=6)
-        limit_per_lbl = Label(add_spending_limit_frame, text="per", font=("Calibri", 20))
-
-        limit_per, limit_drop_down = self.create_limit_drop_down(add_spending_limit_frame)
-        limit_time_condition_frame = Frame(add_spending_limit_frame)
-
-        limit_entry.grid(row=0, column=1, sticky=W, padx=10)
-        limit_per_lbl.grid(row=0, column=2, sticky=W)
-        limit_drop_down.grid(row=0, column=3, sticky=W)
-        limit_time_condition_frame.grid(row=0, column=4, sticky=W)
-
-        active_limits_btn = Button(spending_limit_frame)
-        _add_conditioned_item(spending_limit_frame, active_limits, active_limits_btn, add_spending_limit_frame,
-                              limit_time_condition_frame, limit_dates, limit_length, limit_for, limit_amount, limit_per,
-                              limit_=True)
-
-        # account sub zero allowance
+        # account sub zero allowances
         active_allowances = list()
-        allowance_amount = StringVar()
-        allowance_dates = list()
-        [allowance_dates.append(StringVar()) for _ in range(6)]
-        allowance_length, allowance_for = StringVar(), StringVar()
-
-        allowance_frame = _create_basic_frame("Sub Zero Allowance (£)")
-
-        add_allowance_frame = Frame(allowance_frame)
-
-        # allowance_amount.set("0.00")
-        allowance_entry = Entry(add_allowance_frame, font=("Calibri", 20), textvariable=allowance_amount, width=6)
-        allowance_time_condition_frame = Frame(add_allowance_frame)
-
-        allowance_entry.grid(row=0, column=2, sticky=W, padx=10)
-        allowance_time_condition_frame.grid(row=0, column=3, sticky=W)
-
-        active_allowances_btn = Button(allowance_frame)
-        _add_conditioned_item(allowance_frame, active_allowances, active_allowances_btn, add_allowance_frame,
-                              allowance_time_condition_frame, allowance_dates, allowance_length, allowance_for,
-                              allowance_amount)
+        active_allowances_btn = Button(_create_basic_frame("Sub Zero Allowances"))
+        active_allowances_btn.config(text="None Active", state=NORMAL, font=font1,
+                                     command=lambda: display_conditions(active_allowances))
+        active_allowances_btn.grid(row=0, column=0)
 
         # accounts notes
         notes_frame = _create_basic_frame("Notes")
@@ -637,26 +565,26 @@ class GUI:
                                     if messagebox.askyesno("Are you sure?", confirm_msg) else None)
         actions_delete_btn.grid(row=0, column=2, sticky=E + W, padx=(0, 60))
 
+        account_id_lbl = Label(actions_frame, text=account_info[0] if account_info is not None else "", font=("Calibri", 12, "bold"))
+        account_id_lbl.grid(row=0, column=2, sticky=E)
+
         if account_info is not None:  # account already exists and thus in editing mode
             f_name.set(account_info[1])
             l_name.set(account_info[2])
 
             budget_amount.set("£{0:.2f}".format(account_info[3]))
 
-            discounts = get_account_conditions(account_id=account_info[0], discount=True)
-            for discount in discounts:
-                active_discounts_btn.config(state=NORMAL, text="{0} Active".format(len(discounts)))
-                active_discounts.append((discount[1], "%" if discount[1] == 0 else "£", *discount[3:]))
+            discounts = get_discounts()
+            [active_discounts.append(discount) for discount in discounts]
+            active_discounts_btn.config(state=NORMAL, text="{0} Active".format(len(discounts)))
 
-            limits = get_account_conditions(account_id=account_info[0], spending_limit=True)
-            for limit in limits:
-                    active_limits_btn.config(state=NORMAL, text="{0} Active".format(len(limits)))
-                    active_limits.append(limit[1:])
+            limits = get_limits()
+            [active_limits.append(limit) for limit in limits]
+            active_limits_btn.config(state=NORMAL, text="{0} Active".format(len(limits)))
 
-            allowances = get_account_conditions(account_id=account_info[0], sub_zero_allowance=True)
-            for allowance in allowances:
-                active_allowances_btn.config(state=NORMAL, text="{0} Active".format(len(allowances)))
-                active_allowances.append(allowance[1:])
+            allowances = get_allowances()
+            [active_allowances.append(allowance) for allowance in allowances]
+            active_allowances_btn.config(state=NORMAL, text="{0} Active".format(len(allowances)))
 
             notes.set(account_info[4])
 
@@ -699,7 +627,7 @@ class GUI:
             for field_info in fields_info:
                 value = item[field_info[2]]
                 if field_info[0] == "Type":
-                    text = "£" if value == 0 else "%"
+                    text = "£" if value == 1 else "%"
                 elif field_info[0] == "Void":
                     text = "True" if value == 1 else "False"
                 elif field_info[0] == "End Date":
