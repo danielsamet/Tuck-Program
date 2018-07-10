@@ -50,17 +50,19 @@ class Inherit:
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - checks parameters are instances of the correct objects and returns formatted start and
         end dates"""
-
+        print(start_date)
+        print(type(start_date))
         # check parameter validity
         if not isinstance(amount, int):
             raise ValueError("amount parameter must be an int object")
-        if not isinstance(start_date, datetime) or not isinstance(end_date, datetime):
+        if not (isinstance(start_date, datetime) or (isinstance(end_date, datetime) and end_date != "")):
             raise ValueError("dates must be passed as datetime.datetime objects")
         if void is not None:
             if not isinstance(void, bool):
                 raise ValueError("\"void\" parameter must be from object class \"bool\"")
 
-        return start_date.replace(microsecond=0), end_date.replace(microsecond=0)  # date formatting
+        # date formatting
+        return start_date.replace(microsecond=0), end_date.replace(microsecond=0) if end_date != "" else end_date
 
     def _get_last_id(self, table):
         """internal use only - returns the last id used in database"""
@@ -88,10 +90,10 @@ class Inherit:
 
         where_clause = ' AND '.join(['{} = {!r}'.format(key, value) for key, value in primary_key.items()])  # see
         # printed sql_command to understand this line
+        check_cmd = "SELECT * FROM {0} WHERE {1} = {2} AND ".format(table, self.item_id[0], self.item_id[1]) \
+                    + where_clause
 
-        if not self._check_item_exists("SELECT * FROM {0} WHERE {1} = {2} AND ".format(table, self.item_id[0],
-                                                                                       self.item_id[1])
-                                       + where_clause):
+        if not self._check_item_exists(check_cmd):
             raise RuntimeError("No time-bound item condition found (e.g. no discount found) matching criteria thus "
                                "cannot be deleted.")
 
@@ -110,8 +112,10 @@ class Inherit:
 
         for item in item_conditions:
             if item[-2] == 0:  # if not void
-                if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now() \
-                        < datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
+                if datetime.strptime(item[start_date_pos], "%Y-%m-%d %H:%M:%S") < datetime.now():
+                    if item[start_date_pos + 1] != "":  # allows for indefinite item conditions
+                        if datetime.now() > datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
+                            continue
                     active_items.append(list(item[1:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
                     # method to concatenate when slice is int  # the concatenation is simply for the removal of
                     # unnecessary date
