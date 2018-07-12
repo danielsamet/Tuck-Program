@@ -8,7 +8,7 @@ from accounts import Account
 from products import Product
 
 
-"""The code below is somewhat of a mess as it was built in a hurry for it's first usage"""
+"""The code below is somewhat of a mess as it was built in a hurry for it's first usage (don't judge me by it!)"""
 
 
 class GUI:
@@ -63,7 +63,7 @@ class GUI:
         estyle.configure("EntryStyle.TEntry",
                          fieldbackground="grey85")
 
-        self.accounts_page, self.products_page = IntVar(), IntVar()
+        self.items_page = IntVar()
         self.main_menu()
 
         root.mainloop()
@@ -103,9 +103,9 @@ class GUI:
         Grid.columnconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 1, weight=1)
         Grid.rowconfigure(self.main_frame, 0, weight=1)
 
-        self.accounts_page.set(1), self.products_page.set(1)
+        self.items_page.set(1)
 
-    def accounts(self):
+    def accounts1(self):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.setup())
 
@@ -169,6 +169,9 @@ class GUI:
 
         [Grid.columnconfigure(account_actions_frame, i, weight=1) for i in range(5)]
 
+    def accounts(self):
+        self.page_populator("Accounts")
+
     def account(self, account_info=None):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.accounts())
@@ -177,7 +180,6 @@ class GUI:
         else:
             self.title.set("New Account")
 
-        # self.main_frame.config(bg='grey30')
         Grid.columnconfigure(self.main_frame, 0, weight=1)
 
         if account_info is not None:
@@ -606,6 +608,12 @@ class GUI:
 
             notes.set(account_info[4])
 
+    def products(self):
+        self.page_populator("Products")
+
+    def product(self, account_info=None):
+        pass
+
     def display_history(self, field_name, item_id, caller_id, caller_params, page=1):
         """display history resets main frame to shown the history for any given account or product field"""
 
@@ -685,9 +693,81 @@ class GUI:
         Label(page_scrolling_frame, text="Page {0} of {1}".format(page, total_pages), bg=self.background_bg,
               font=font2).grid(row=0, column=1, padx=20)
 
-    def products(self):
+    def page_populator(self, caller):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.setup())
+
+        call_item = self.accounts if caller == "Accounts" else self.products
+
+        items = get_accounts() if caller == "Accounts" else get_products()
+
+        self.title.set("{0} ({1})".format(caller, len(items)))
+
+        item_frame = Frame(self.main_frame, bg=self.background_bg)
+        item_frame.grid(row=0, column=0, sticky=E + W)
+
+        item_actions_frame = Frame(self.main_frame, bg=self.background_bg)
+        item_actions_frame.grid(row=1, column=0, pady=20, sticky=S + E + W)
+
+        Grid.columnconfigure(self.main_frame, 0, weight=1)
+        Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.rowconfigure(self.main_frame, 1, weight=0)
+
+        font = (self.font_name, 16, "bold")
+
+        col, row = int(), int()
+        Grid.rowconfigure(item_frame, row, weight=1), Grid.columnconfigure(item_frame, col, weight=1)
+
+        total_items, page, page_limit = len(items), self.items_page.get(), 35
+        total_pages = ceil(total_items/page_limit) if total_items > 0 else 1
+
+        items = items[(page - 1) * page_limit:page * page_limit] if total_items >= page * page_limit \
+            else items[(page - 1) * page_limit:]
+
+        for item in items:
+            Button(item_frame, text=item[1] + " " + item[2] if caller == "Accounts" else item[1], bg="orange",
+                   font=font, width=20, height=2,
+                   command=lambda item_info=item: call_item(item_info)).grid(row=row, column=col, pady=20)
+            Grid.columnconfigure(item_frame, col, weight=1)
+            col += 1
+            if col == 5:
+                col, row = 0, row + 1
+                Grid.rowconfigure(item_frame, row, weight=1)
+
+        bg = "salmon"
+        initial_dir, title_1 = "%documents%", "Select the File to Import From"
+        file_types = ('csv files only', '*.csv')
+
+        if caller == "Accounts":
+            msg = "Accounts can be imported from a csv file where each line is a new account. Each account must have " \
+                  "the 3 fields \"First Name\", \"Last Name\" and \"Budget\" delimited by commas."
+        else:
+            msg = "Products can be imported from a csv file where each line is a new product. Each product must have " \
+                  "the 3 fields \"Product Name\", \"Cost Price\" and \"Sale Price\" delimited by commas."
+        msg += "\n\nIs the intended CSV file in the correct format?"
+
+        import_btn = Button(item_actions_frame, text="IMPORT", font=font, bg=bg, width=12,
+                            command=lambda: self.combine_funcs(
+                                self.import_items(filedialog.askopenfilename(initialdir=initial_dir, title=title_1,
+                                                                             filetypes=[file_types]), caller=caller),
+                                call_item()) if messagebox.askyesno("Import Details", msg) else None)
+        import_btn.grid(row=0, column=0)
+        add_btn = Button(item_actions_frame, text="ADD", font=font, bg=bg, width=12, command=lambda: call_item())
+        add_btn.grid(row=0, column=1)
+        previous_btn = Button(item_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12,
+                              command=lambda: self.combine_funcs(self.items_page.set(page-1),
+                                                                 self.page_populator(caller))
+                              if page > 1 else None)
+        previous_btn.grid(row=0, column=2)
+        page_lbl = Label(item_actions_frame, text="Page {0} of {1}".format(page, total_pages),
+                         font=font, bg=bg, width=12)
+        page_lbl.grid(row=0, column=3)
+        next_btn = Button(item_actions_frame, text="NEXT", font=font, bg=bg, width=12,
+                          command=lambda: self.combine_funcs(self.items_page.set(page + 1),
+                                                             self.page_populator(caller))
+                          if page < total_pages else None)
+        next_btn.grid(row=0, column=4)
+
+        [Grid.columnconfigure(item_actions_frame, i, weight=1) for i in range(5)]
 
     def transactions(self):
         self._frame_reset(self.main_frame)
@@ -719,7 +799,7 @@ class GUI:
     def _empty_frame(self, frame):
         [widget.destroy() for widget in frame.winfo_children()]
 
-    def import_items(self, csv_address):
+    def import_items(self, csv_address, caller):
         successful, items = int(), list()
 
         try:
@@ -730,18 +810,27 @@ class GUI:
 
             for item in csv:
                 temp = item.split(",")
-                if len(temp) == 3:
-                    items.append(temp)
+                if temp != [""]:
+                    if caller == "Accounts":
+                        if len(temp) >= 3:
+                            items.append(temp)
+                    else:
+                        if len(temp) >= 1:
+                            items.append(temp)
 
             for item in items:
-                print(item)
-                new_account = Account()
+                new_item = Account() if caller == "Accounts" else Product()
                 try:
-                    new_account.add_account(f_name=item[0], l_name=item[1])
-                    new_account.update_details(balance=float(item[2].strip("£")))
+                    if caller == "Accounts":
+                        new_item.add_account(f_name=item[0], l_name=item[1])
+                        new_item.update_details(balance=float(item[2].strip("£")))
+                    else:
+                        new_item.add_product(p_name=item[0])
+                        new_item.update_details(cost_price=float(item[1].strip("£")),
+                                                sale_price=float(item[2].strip("£")))
                     successful += 1
                 except:
-                    new_account.delete_account()
+                    new_item.delete_account() if caller == "Accounts" else new_item.delete_product()
         except FileNotFoundError:
             pass
 
