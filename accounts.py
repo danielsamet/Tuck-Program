@@ -27,7 +27,7 @@ class Account(Inherit):
             spending_limit = self._get_active_item_condition(
                 "SELECT * FROM accounts_spending_limit WHERE account_id = {0}".format(account_id), 3)
             sub_zero_allowance = self._get_active_item_condition(
-                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)[0]
+                "SELECT * FROM accounts_sub_zero_allowance WHERE account_id = {0}".format(account_id), 2)
             notes = self._get_last_by_date("accounts_notes")
         else:
             account = [int(), int(), datetime.now(), False]
@@ -63,6 +63,8 @@ class Account(Inherit):
         self._db_execute("INSERT INTO accounts_f_name VALUES (?, ?, ?)",
                          (self.account_id, f_name, datetime.now()))
         self._db_execute("INSERT INTO accounts_l_name VALUES (?, ?, ?)", (self.account_id, l_name, datetime.now()))
+        self._db_execute("INSERT INTO accounts_notes VALUES (?, ?, ?)", (self.account_id, "Account created!",
+                                                                         datetime.now()))
         if notes != "":
             self._db_execute("INSERT INTO accounts_notes VALUES (?, ?, ?)", (self.account_id, notes, datetime.now()))
 
@@ -73,7 +75,7 @@ class Account(Inherit):
             raise ValueError("Account is either set to None or does not exist in database")
 
         self._db_execute("UPDATE accounts SET void = 1 WHERE account_id = {0}".format(self.account_id))
-        self.void = False
+        self.void = True
 
     def add_discount(self, amount, type_, start_date, end_date, void=False):
         """adds new discount to database for the account"""
@@ -159,16 +161,15 @@ if __name__ == "__main__":  # test commands
         return datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S.%f")
 
     couch = Account()
-    couch.add_account("Couch", "Master")
+    couch.add_account("Couch", "Lord")
 
     # couch = Account(1)
 
-    couch.update_details(f_name="Couche")
-    couch.update_details(l_name="Lord")
+    couch.update_details(l_name="Master")
     couch.update_details(notes="Testing some new designs out.")
     couch.update_details(balance=100)
 
-    couch.add_discount(5, 1, _date('2018-06-10 14:38:30'), _date('2018-06-30 14:38:30'))
+    couch.add_discount(5, 1, _date('2018-06-10 14:38:30'), _date('2018-07-25 14:38:30'))
     # couch.delete_discount("2018-06-19 14:50:21.371553")
 
     couch.add_spending_limit(20, "transaction", _date('2018-06-10 14:38:30'), _date('2018-06-24 14:38:30'))
@@ -177,7 +178,7 @@ if __name__ == "__main__":  # test commands
     couch.add_sub_zero_allowance(5, _date('2018-06-11 14:38:30'), _date('2018-06-27 14:38:30'))
     # couch.delete_sub_zero_allowance(5, date('2018-06-18 14:38:30'), date('2018-06-18 14:38:30'))
 
-    couch.delete_account()
+    # couch.delete_account()
 
     # Note:
 

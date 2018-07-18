@@ -21,11 +21,23 @@ class Product(Inherit):
 
             product = self._db_execute("SELECT * FROM products WHERE product_id = {0}".format(product_id))[0]
             p_name = self._get_last_by_date("products_name")[0][1]
-            supplier = self._get_last_by_date("products_supplier")[0][1]
-            cost_price = self._get_last_by_date("products_cost_price")[0][1]
-            sale_price = self._get_last_by_date("products_sale_price")[0][1]
-            notes = self._get_last_by_date("products_notes")[0][1]  # shouldn't be last by date. Should show all
-            # non-void
+            try:
+                supplier = self._get_last_by_date("products_supplier")[0][1]
+            except IndexError:
+                supplier = str()
+            try:
+                cost_price = self._get_last_by_date("products_cost_price")[0][1]
+            except IndexError:
+                cost_price = float()
+            try:
+                sale_price = self._get_last_by_date("products_sale_price")[0][1]
+            except IndexError:
+                sale_price = float()
+            try:
+                notes = self._get_last_by_date("products_notes")[0][1]  # shouldn't be last by date. Should show all
+                # non-void
+            except IndexError:
+                notes = str()
 
             purchase_limit = self._get_active_item_condition(
                 "SELECT * FROM products_purchase_limit WHERE product_id = {0}".format(product_id), 3)
@@ -35,7 +47,7 @@ class Product(Inherit):
                 "SELECT * FROM products_offers WHERE product_id = {0}".format(product_id), 5)
         else:
             product = [int(), int(), datetime.now(), False]
-            p_name, supplier, cost_price, sale_price, notes = str(), str(), int(), int(), str()
+            p_name, supplier, cost_price, sale_price, notes = str(), str(), float(), float(), str()
             purchase_limit, discount, offers = [], [], []
 
         self.name = p_name
@@ -61,7 +73,7 @@ class Product(Inherit):
                              " update_product)")
 
         self._db_execute("INSERT INTO products VALUES (NULL, ?, ?, ?)",
-                         (p_name, datetime.now(), 0))
+                         (0, datetime.now(), 0))
 
         self.product_id, self.name, self.notes = self._get_last_id("products"), p_name, notes
 
@@ -98,7 +110,7 @@ class Product(Inherit):
     def delete_purchase_limit(self, date):
         """deletes spending limit from database for the product"""
 
-        self._run_condition_delete_commands("products_spending_limit", date=date)
+        self._run_condition_delete_commands("products_purchase_limit", date=date)
 
     def add_offer(self, buy_x, get_y, z_off, type_, start_date, end_date, void=False):
         """adds offer to database for the product"""
@@ -182,7 +194,7 @@ if __name__ == "__main__":
 
     couch = Product()
     couch.add_product("Sour Sticks")
-    couch.update_details(supplier="Lord")
+    # couch.update_details(name="Sour Chews", supplier="Lord")
     couch.update_details(name="Sour Chews")
     couch.update_details(cost_price=2.00)
     couch.update_details(sale_price=3.50)

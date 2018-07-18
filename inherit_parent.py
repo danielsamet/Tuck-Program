@@ -50,10 +50,9 @@ class Inherit:
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - checks parameters are instances of the correct objects and returns formatted start and
         end dates"""
-        print(start_date)
-        print(type(start_date))
+
         # check parameter validity
-        if not isinstance(amount, int):
+        if not isinstance(amount, (int, float)):
             raise ValueError("amount parameter must be an int object")
         if not (isinstance(start_date, datetime) or (isinstance(end_date, datetime) and end_date != "")):
             raise ValueError("dates must be passed as datetime.datetime objects")
@@ -116,6 +115,7 @@ class Inherit:
                     if item[start_date_pos + 1] != "":  # allows for indefinite item conditions
                         if datetime.now() > datetime.strptime(item[start_date_pos + 1], "%Y-%m-%d %H:%M:%S"):
                             continue
+
                     active_items.append(list(item[1:start_date_pos]) + [int(i) for i in str(item[-2])])  # no cleaner
                     # method to concatenate when slice is int  # the concatenation is simply for the removal of
                     # unnecessary date
@@ -124,9 +124,11 @@ class Inherit:
 
     def _get_last_by_date(self, table):
         """internal use only - gets last item entered into table for current account/product"""
-        return self._db_execute("SELECT * FROM {0} WHERE {1} = {2} AND date = " 
-                                "(SELECT max(date) FROM {0} WHERE {1} = {2})".format(table, self.item_id[0],
-                                                                                     self.item_id[1]))
+
+        cmd = "SELECT * FROM {0} WHERE {1} = {2} AND date = (SELECT max(date) FROM {0} WHERE {1} = {2})".format(
+            table, self.item_id[0], self.item_id[1])
+
+        return self._db_execute(cmd)
 
     def _check_type_param(self, type_):
         """internal use only - checks if the type_ parameter is valid"""

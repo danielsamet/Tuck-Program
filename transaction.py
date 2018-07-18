@@ -80,7 +80,7 @@ class Transaction(Inherit):
 
         # account discount
         for discount in account.discount:
-            account_discount += discount[0] if discount[1] == 0 else discount[0] / 100 * total_amount
+            account_discount += discount[0] if discount[1] == 1 else discount[0] / 100 * total_amount
 
         total_to_pay = total_amount - products_discount - account_discount
 
@@ -100,9 +100,12 @@ class Transaction(Inherit):
         # check sub zero allowance
         new_balance = account.balance - total_to_pay
 
-        if new_balance < -account.sub_zero_allowance[0]:
-            raise ValueError("Not enough money in the account. New balance would be £{0} but the sub zero allowance is "
-                             "only £{1}.".format(new_balance, -account.sub_zero_allowance[0]))
+        try:
+            if new_balance < -account.sub_zero_allowance[0][0]:  # check out these [0]s
+                raise ValueError("Not enough money in the account. New balance would be £{0} but the sub zero allowance"
+                                 " is only £{1}.".format(new_balance, -account.sub_zero_allowance[0]))
+        except IndexError:
+            pass
 
         # perform transaction
         self._db_execute("INSERT INTO transactions VALUES (NULL, ?, ?, ?, ?)",
