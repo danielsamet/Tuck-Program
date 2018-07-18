@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from math import ceil
 from accounts import Account
 from products import Product
+from transaction import Transaction
 
 
 """The code below is somewhat of a mess as it was built in a hurry for it's first usage (don't judge me by it!)"""
@@ -31,15 +32,16 @@ class GUI:
 
         Grid.columnconfigure(root, 0, weight=1)
 
-        self.back_btn = Button(top_bar, text="<--", bg=top_bar_btn_bg, font=(self.font_name, 20, "bold"), width=10, height=2)
+        self.back_btn = Button(top_bar, text="<--", bg=top_bar_btn_bg, font=(self.font_name, 20, "bold"), width=10,
+                               height=2)
         self.back_btn.grid(row=0, column=0, sticky=W)
 
         self.title = StringVar()
         title_lbl = Label(top_bar, textvariable=self.title, font=(self.font_name, 54, "bold"), bg=top_bar_bg)
         title_lbl.grid(row=0, column=1)
 
-        home_btn = Button(top_bar, text="HOME", bg=top_bar_btn_bg, font=(self.font_name, 20, "bold"), width=10, height=2,
-                          command=lambda: self.main_menu())
+        home_btn = Button(top_bar, text="HOME", bg=top_bar_btn_bg, font=(self.font_name, 20, "bold"), width=10,
+                          height=2, command=lambda: self.main_menu())
         home_btn.grid(row=0, column=2, sticky=E)
 
         Grid.columnconfigure(top_bar, 0, weight=1), Grid.columnconfigure(top_bar, 1, weight=2)
@@ -64,6 +66,8 @@ class GUI:
                          fieldbackground="grey85")
 
         self.items_page = IntVar()
+        self.items_page.set(1)
+
         self.main_menu()
 
         root.mainloop()
@@ -456,9 +460,9 @@ class GUI:
                           ).grid(row=0, column=3, padx=title_padx, pady=title_pady, sticky=E + W)
                     col = 4
                 else:
-                    Label(self.main_frame, text="Amount (£)" if p_limit or limit_ else "Amount", font=font1,
-                          bg=self.background_bg, width=title_width).grid(row=0, column=0, padx=title_padx,
-                                                                         pady=title_pady, sticky=E + W)
+                    Label(self.main_frame, text="Amount (£)" if p_limit or limit_ or allowance_ else "Amount",
+                          font=font1, bg=self.background_bg, width=title_width).grid(row=0, column=0, padx=title_padx,
+                                                                                     pady=title_pady, sticky=E + W)
                     col = 1
 
                     if discount_ or limit_ or p_discount or p_limit:
@@ -650,7 +654,7 @@ class GUI:
             discounts_ = list()
 
             for discount in get_product_conditions(product_id=item_info[0], discount=True):
-                discounts_.append((discount[1], "%" if discount[2] == 0 else "£", *discount[3:]))
+                discounts_.append((discount[1], "%" if str(discount[2]) == "0" else "£", *discount[3:]))
 
             return discounts_
 
@@ -713,7 +717,7 @@ class GUI:
             active_allowances = list()
             active_allowances_btn = Button(_create_basic_frame("Sub Zero Allowances"))
             active_allowances_btn.config(text="None Active", state=NORMAL, font=font1,
-                                         command=lambda: display_conditions(active_allowances))
+                                         command=lambda: display_conditions(active_allowances, allowance_=True))
             active_allowances_btn.grid(row=0, column=0)
 
             # accounts notes
@@ -969,13 +973,14 @@ class GUI:
         Label(page_scrolling_frame, text="Page {0} of {1}".format(page, total_pages), bg=self.background_bg,
               font=font2).grid(row=0, column=1, padx=20)
 
-    def page_populator(self, caller):
+    def page_populator(self, caller, select_user=False):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.setup())
 
-        call_item = self.account if caller == "Accounts" else self.product
+        call_item = self.account if caller == "Accounts" else self.product if caller == "Products" \
+            else self.transactions
 
-        items = get_accounts() if caller == "Accounts" else get_products()
+        items = get_accounts() if caller in ["Accounts", "Transactions"] else get_products()
 
         self.title.set("{0} ({1})".format(caller, len(items)))
 
@@ -1000,54 +1005,308 @@ class GUI:
             else items[(page - 1) * page_limit:]
 
         for item in items:
-            Button(item_frame, text=item[1] + " " + item[2] if caller == "Accounts" else item[1], bg="orange",
-                   font=font, width=20, height=2,
-                   command=lambda item_info=item: call_item(item_info)).grid(row=row, column=col, pady=20)
+            Button(item_frame, text=item[1] + " " + item[2] if caller in ["Accounts", "Transactions"] else item[1],
+                   bg="orange", font=font, width=20, height=2,
+                   command=lambda item_info=item: call_item(item_info) if not select_user
+                   else self.transactions(item_info)).grid(row=row, column=col, pady=20)
             Grid.columnconfigure(item_frame, col, weight=1)
             col += 1
             if col == 5:
                 col, row = 0, row + 1
                 Grid.rowconfigure(item_frame, row, weight=1)
 
-        bg = "salmon"
-        initial_dir, title_1 = "%documents%", "Select the File to Import From"
-        file_types = ('csv files only', '*.csv')
+        if len(items) == 0:
+            Label(item_frame, text="No Items!", font=("Calibri", 36, "bold")).pack()
 
-        if caller == "Accounts":
-            msg = "Accounts can be imported from a csv file where each line is a new account. Each account must have " \
-                  "the 3 fields \"First Name\", \"Last Name\" and \"Budget\" delimited by commas."
-        else:
-            msg = "Products can be imported from a csv file where each line is a new product. Each product must have " \
-                  "the 3 fields \"Product Name\", \"Cost Price\" and \"Sale Price\" delimited by commas."
-        msg += "\n\nIs the intended CSV file in the correct format?"
+        if not select_user:
+            bg = "salmon"
+            initial_dir, title_1 = "%documents%", "Select the File to Import From"
+            file_types = ('csv files only', '*.csv')
 
-        import_btn = Button(item_actions_frame, text="IMPORT", font=font, bg=bg, width=12,
-                            command=lambda: self.combine_funcs(
-                                self.import_items(filedialog.askopenfilename(initialdir=initial_dir, title=title_1,
-                                                                             filetypes=[file_types]), caller=caller),
-                                self.page_populator(caller)) if messagebox.askyesno("Import Details", msg) else None)
-        import_btn.grid(row=0, column=0)
-        add_btn = Button(item_actions_frame, text="ADD", font=font, bg=bg, width=12, command=lambda: call_item())
-        add_btn.grid(row=0, column=1)
-        previous_btn = Button(item_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12,
-                              command=lambda: self.combine_funcs(self.items_page.set(page-1),
+            if caller == "Accounts":
+                msg = "Accounts can be imported from a csv file where each line is a new account. Each account must " \
+                      "have the 3 fields \"First Name\", \"Last Name\" and \"Budget\" delimited by commas."
+            else:
+                msg = "Products can be imported from a csv file where each line is a new product. Each product must have " \
+                      "the 3 fields \"Product Name\", \"Cost Price\" and \"Sale Price\" delimited by commas."
+            msg += "\n\nIs the intended CSV file in the correct format?"
+
+            import_btn = Button(item_actions_frame, text="IMPORT", font=font, bg=bg, width=12,
+                                command=lambda: self.combine_funcs(
+                                    self.import_items(filedialog.askopenfilename(
+                                        initialdir=initial_dir, title=title_1, filetypes=[file_types]), caller=caller),
+                                    self.page_populator(caller)) if messagebox.askyesno("Import Details", msg)
+                                else None)
+            import_btn.grid(row=0, column=0)
+            add_btn = Button(item_actions_frame, text="ADD", font=font, bg=bg, width=12, command=lambda: call_item())
+            add_btn.grid(row=0, column=1)
+            previous_btn = Button(item_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12,
+                                  command=lambda: self.combine_funcs(self.items_page.set(page-1),
+                                                                     self.page_populator(caller))
+                                  if page > 1 else None)
+            previous_btn.grid(row=0, column=2)
+            page_lbl = Label(item_actions_frame, text="Page {0} of {1}".format(page, total_pages),
+                             font=font, bg=bg, width=12)
+            page_lbl.grid(row=0, column=3)
+            next_btn = Button(item_actions_frame, text="NEXT", font=font, bg=bg, width=12,
+                              command=lambda: self.combine_funcs(self.items_page.set(page + 1),
                                                                  self.page_populator(caller))
-                              if page > 1 else None)
-        previous_btn.grid(row=0, column=2)
-        page_lbl = Label(item_actions_frame, text="Page {0} of {1}".format(page, total_pages),
-                         font=font, bg=bg, width=12)
-        page_lbl.grid(row=0, column=3)
-        next_btn = Button(item_actions_frame, text="NEXT", font=font, bg=bg, width=12,
-                          command=lambda: self.combine_funcs(self.items_page.set(page + 1),
-                                                             self.page_populator(caller))
-                          if page < total_pages else None)
-        next_btn.grid(row=0, column=4)
+                              if page < total_pages else None)
+            next_btn.grid(row=0, column=4)
 
-        [Grid.columnconfigure(item_actions_frame, i, weight=1) for i in range(5)]
+            [Grid.columnconfigure(item_actions_frame, i, weight=1) for i in range(5)]
 
-    def transactions(self):
+    def transactions(self, item_info=None):
+
+        def add_transaction(product):
+            if product in transactions.keys():
+                quantity = transactions[product] + 1
+            else:
+                quantity = 1
+
+            transactions[product] = quantity
+
+            [widget.destroy() for widget in transactions_individual.winfo_children()]
+
+            flag = False
+            for item in transactions.items():
+                quantity = item[1]
+                position = list(transactions.keys()).index(item[0])
+
+                if not add(quantity, item[0], position):
+                    flag = True
+            if flag:
+                remove_transaction(product)
+
+        def add(quantity, product, position):
+
+            cost = product[4]
+
+            text = "{0:02d}".format(quantity) + " x " + str(product[1]) + " @ " + "£{0:.2f} = £{1:.2f}".format(
+                cost, quantity * cost)
+
+            try:
+                p_discounts = get_product_conditions(product_id=product[0], discount=True)
+                p_discount = float()
+                for item in p_discounts:
+                    if item[2] == "0":
+                        p_discount += item[1]
+            except IndexError:
+                p_discount = float()
+
+            d_condition = f"{p_discount:.2f}% off = £{quantity * cost - p_discount / 100 * quantity * cost:.2f}" \
+                if p_discount != float() else None
+
+            try:
+                p_offers = get_product_conditions(product_id=product[0], offer=True)
+                for item in p_offers:
+                    p_offer = item[1:4]
+                divider = p_offer[0] + p_offer[1]
+                if quantity >= divider:
+
+                    no_to_apply = int(quantity / divider)
+                    discount_cost = no_to_apply * (product[4] - (p_offer[1] * product[4]))
+                    remaining_cost = (quantity - no_to_apply) * product[4]
+
+                    o_condition = f"Buy {p_offer[0]} Get {p_offer[1]} {p_offer[2]}% off = " \
+                                  f"£{discount_cost + remaining_cost:.2f}"
+
+                    if float(discount_cost + remaining_cost) > float(d_condition[d_condition.rfind("£")+1:]):
+                        raise IndexError()
+                else:
+                    raise IndexError()
+            except (IndexError, UnboundLocalError):
+                o_condition = None
+
+            transaction_f = Frame(transactions_individual)
+            transaction_f.grid(row=position, column=0)
+
+            Label(transaction_f, text=text, font=font2, width=30, anchor=W).grid(row=0, column=0, sticky=W)
+            if o_condition is not None:
+                Label(transaction_f, text=o_condition, font=font2, width=30, anchor=E).grid(row=2, column=0)
+            elif d_condition is not None:
+                Label(transaction_f, text=d_condition, font=font2, width=30, anchor=E).grid(row=1, column=0)
+
+            total_ = float()
+            for frame_ in transactions_individual.winfo_children():  # calc total
+                txt = frame_.winfo_children()[-1].cget("text")
+                total_ += float(txt[txt.rfind("£") + 1:])
+                total_ = total_ - total_ * (discount / 100)
+
+            if total_ > limit > 0:
+                messagebox.showerror("Spending Limit Reached", "You have reached the spending limit for this account "
+                                                               "and therefore cannot add this item.")
+                return False
+            elif balance - total_ + allowance < 0:
+                messagebox.showerror("Insufficient Funds", "Your account does not have enough funds for this item to be"
+                                                           " added.")
+            else:
+                total.set(f"£{total_:.2f}")  # look for neater solution for the remove loop
+                new_balance.set(f"£{item_info[3] - total_:.2f}")
+
+                return True
+
+        def remove_transaction(product):
+            if product in transactions.keys():
+                quantity = transactions[product] - 1
+                position = list(transactions.keys()).index(product)
+
+                if quantity == 0:
+                    del transactions[product]
+                    [widget.destroy() for widget in transactions_individual.winfo_children()]
+                    for item in transactions.items():
+                        quantity = item[1]
+                        position = list(transactions.keys()).index(item[0])
+
+                        add(quantity, item[0], position)
+
+                    if len(transactions.items()) == 0:  # when removing all items from transactions list
+                        total.set("£0.00")
+                        new_balance.set(f"£{balance:.2f}")
+                else:
+                    transactions[product] = quantity
+
+                    [widget.destroy() for widget in transactions_individual.winfo_children()
+                     if product[1] in widget.winfo_children()[0].cget("text")]
+
+                    add(quantity, product, position)
+
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.main_menu())
+        self.title.set("Transactions")
+
+        product_frame = Frame(self.main_frame, bg='red')
+        product_frame.grid(row=0, column=0, sticky=N + E + S + W)
+
+        transactions_frame = Frame(self.main_frame, bg='green2')
+        transactions_frame.grid(row=0, column=1, rowspan=2, sticky=N + S)
+
+        actions_frame = Frame(self.main_frame, bg='purple')
+        actions_frame.grid(row=1, column=0, sticky=E + W)
+
+        Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 0, weight=1)
+
+        font1, font2 = (self.font_name, 19, "bold"), (self.font_name, 16)
+        font3, font4 = (self.font_name, 14, "bold"), (self.font_name, 14)
+
+        row_limit, column_limit = 6, 5
+        row, col = int(), int()
+
+        for product in get_products():
+            frame = Frame(product_frame, bg='blue4')
+            frame.grid(row=row, column=col, padx=10, pady=(14, 0), sticky=E + W)
+
+            Label(frame, text=product[1], font=font1, width=13).grid(row=0, column=0, sticky=E + W)
+            Label(frame, text="£{0:.2f}".format(product[4]), font=font2).grid(row=1, column=0, sticky=E + W)
+
+            def no_user(): messagebox.showerror("Must Select User", "Please select a user before adding items!")
+
+            Button(frame, text="+", font=font2, width=3, command=lambda item=product: add_transaction(item)
+                   if item_info is not None else no_user()).grid(row=0, column=1)
+            Button(frame, text="-", font=font2, width=3, command=lambda item=product: remove_transaction(item)
+                   if item_info is not None else no_user()).grid(row=1, column=1)
+
+            Grid.columnconfigure(frame, 0, weight=1)
+
+            col += 1
+
+            if col == column_limit:
+                row += 1
+                col = 0
+
+            if row == row_limit:
+                break
+
+        transactions_individual = Frame(transactions_frame, bg='pink')
+        transactions_individual.grid(row=0, column=0, sticky=N + E + S + W)
+
+        transactions = dict()
+
+        user_frame = Frame(transactions_frame)
+        user_frame.grid(row=1, column=0, pady=10, padx=10, sticky=E + W + S)
+
+        if item_info is None:
+            Button(user_frame, text="Select User", font=font1,
+                   command=lambda: self.page_populator("Transactions", select_user=True)).grid(row=0, column=0,
+                                                                                               sticky=E + W, padx=4)
+        else:
+            Label(user_frame, text="Account Discount", font=font3).grid(row=0, column=0, sticky=W)
+            Label(user_frame, text="Account Spending Limit", font=font3).grid(row=1, column=0, sticky=W)
+            Label(user_frame, text="Account Sub Zero Allowance", font=font3).grid(row=2, column=0, sticky=W)
+
+            try:
+                discounts = get_account_conditions(account_id=item_info[0], discount=True)
+                discount = float()
+                for item in discounts:
+                    if item[2] == 0:
+                        discount += item[1]
+            except IndexError:
+                discount = float()
+
+            try:
+                limits = get_account_conditions(account_id=item_info[0], spending_limit=True)
+                limit = float()
+                for item in limits:
+                    limit += item[1]
+            except IndexError:
+                limit = float()
+            try:
+                allowances = get_account_conditions(account_id=item_info[0], sub_zero_allowance=True)
+                allowance = float()
+                for item in allowances:
+                    allowance += item[1]
+            except IndexError:
+                allowance = float()
+
+            Label(user_frame, text="{0:.2f}%".format(discount), font=font4).grid(row=0, column=1, sticky=E)
+            Label(user_frame, text="£{0:.2f}".format(limit), font=font4).grid(row=1, column=1, sticky=E)
+            Label(user_frame, text="£{0:.2f}".format(allowance), font=font4).grid(row=2, column=1, sticky=E)
+
+        Grid.columnconfigure(user_frame, 0, weight=1)
+
+        total_frame = Frame(transactions_frame)
+        total_frame.grid(row=3, column=0, pady=10, padx=10, sticky=E + W + S)
+        Grid.columnconfigure(total_frame, 1, weight=1)
+
+        Label(total_frame, text="Account Balance:", font=font3).grid(row=0, column=0, sticky=W)
+        balance = item_info[3] if item_info is not None else 0
+        Label(total_frame, text="£{0:.2f}".format(balance), font=font4).grid(row=0, column=1, sticky=E)
+
+        total = StringVar()
+        total.set("£0.00")
+
+        Label(total_frame, text="Total:", font=font1).grid(row=1, column=0, sticky=W, pady=10)
+        Label(total_frame, textvariable=total, font=font1).grid(row=1, column=1, sticky=E)
+
+        Label(total_frame, text="New Balance:", font=font3).grid(row=2, column=0, sticky=W)
+        new_balance = StringVar()
+        new_balance.set(f"£{balance:.2f}")
+        Label(total_frame, textvariable=new_balance, font=font4).grid(row=2, column=1, sticky=E)
+
+        Button(transactions_frame, text="Purchase", font=font1, width=23,
+               command=lambda: self.combine_funcs(
+                   Transaction().record_transaction(Account(item_info[0]),
+                                                    *[[Product(product[0]), quantity] for product, quantity
+                                                      in transactions.items()]),
+                   self.transactions(item_info=get_accounts(account_id=item_info[0])[0])))\
+            .grid(row=5, column=0, pady=10, padx=10, sticky=E + W + S)
+
+        Grid.rowconfigure(transactions_frame, 0, weight=1)
+
+        msg = "This will reset the current transaction and deselect the current user.\n\nAre you sure you want to " \
+              "continue?"
+        Button(actions_frame, text="Cancel", font=font1,
+               command=lambda: self.transactions() if messagebox.askyesno("Cancel", msg) else None).grid(row=0,
+                                                                                                         column=0)
+
+        page_actions_frame = Frame(actions_frame)
+        page_actions_frame.grid(row=0, column=1, sticky=E)
+
+        Button(page_actions_frame, text="Previous Page", font=font1, state=DISABLED).grid(row=0, column=0, padx=10)
+        Label(page_actions_frame, text="1 of 1", font=font1).grid(row=0, column=1, padx=10)
+        Button(page_actions_frame, text="Next Page", font=font1, state=DISABLED).grid(row=0, column=2, padx=10)
+
+        Grid.columnconfigure(actions_frame, 1, weight=1)
 
     def create_type_dropdown(self, frame, font=("Calibri", 20, "bold")):
         type_ = StringVar()
