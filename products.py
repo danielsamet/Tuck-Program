@@ -164,7 +164,7 @@ class Product(Inherit):
                 self._update_item("products_sale_price", value, int, float)
                 self.selling_price = value
             elif key == "quantity":
-                self._update_item("products_quantity_top_ups", value, int)
+                # self._update_item("products_quantity_top_ups", value, int)  # new top_up function added for topping up
                 new_quantity = self.quantity + value
                 self._db_execute("UPDATE products SET quantity = {0} WHERE product_id = {1}".format(new_quantity,
                                                                                                     self.product_id))
@@ -175,6 +175,15 @@ class Product(Inherit):
             else:
                 raise KeyError("{0} is not a valid detail name. "
                                "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
+
+    def top_up(self, amount):
+        """tops up product quantity with specified amount (as opposed to using the update_details function to update
+        quantity upon a transaction)"""
+
+        self._update_item("products_quantity_top_ups", amount, int)
+        new_quantity = self.quantity + amount
+        self._db_execute("UPDATE products SET quantity = {0} WHERE product_id = {1}".format(new_quantity,
+                                                                                            self.product_id))
 
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - overriding parent class to include a check if product exists"""

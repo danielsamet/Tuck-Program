@@ -132,7 +132,7 @@ class Account(Inherit):
                 self._update_item("accounts_l_name", value, str)
                 self.l_name = value
             elif key == "balance":
-                self._update_item("accounts_top_ups", value, int, float)
+                # self._update_item("accounts_top_ups", value, int, float)  # new top_up function added for topping up
                 new_balance = self.balance + value
                 self._db_execute("UPDATE accounts SET balance = {0} WHERE account_ID = {1}".format(new_balance,
                                                                                                    self.account_id))
@@ -143,6 +143,15 @@ class Account(Inherit):
             else:
                 raise KeyError("{0} is not a valid detail name. "
                                "Ensure detail name is in [f_name, l_name, balance, notes].".format(key))
+
+    def top_up(self, amount):
+        """tops up account with specified amount (as opposed to using the update_details function to update balance
+        upon a transaction)"""
+
+        self._update_item("accounts_top_ups", amount, int, float)
+        new_balance = self.balance + amount
+        self._db_execute("UPDATE accounts SET balance = {0} WHERE account_ID = {1}".format(new_balance,
+                                                                                           self.account_id))
 
     def _check_param_validity(self, amount, start_date, end_date, void=None):
         """internal use only - overriding parent class to include a check if account exists"""
