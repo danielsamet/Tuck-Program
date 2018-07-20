@@ -116,10 +116,17 @@ class Transaction(Inherit):
             product[0].update_details(quantity=-product[1])
         account.update_details(balance=-total_to_pay)
 
-    def revert_transaction(self):
+    def revert_transaction(self, transaction_id):
         """reverts the transaction in database by voiding it and then reverting its effects (refunding etc.)"""
 
-        pass
+        self._db_execute(f"UPDATE transactions SET void=1 WHERE transaction_ID={transaction_id}")
+        account_id, amount = self._db_execute("SELECT account_id, amount FROM transactions "
+                                              f"WHERE transaction_ID={transaction_id}")[0]
+        Account(account_id).update_details(balance=amount)
+        for product_id, quantity in self._db_execute("SELECT product_ID, quantity FROM transactions_products "
+                                                     f"WHERE transaction_id={transaction_id}"):
+            quantity += self._db_execute(f"SELECT quantity FROM products WHERE product_ID={product_id}")[0][0]
+            self._db_execute(f"UPDATE products SET quantity={quantity} WHERE product_ID={product_id}")
 
     def _check_transaction_not(self, msg):
         """internal use only - checks if transaction exists, raising an error if it does"""
@@ -136,4 +143,5 @@ class Transaction(Inherit):
 
 if __name__ == "__main__":
     couch = Transaction()
-    couch.record_transaction(Account(1), [Product(1), 4])
+    # couch.record_transaction(Account(1), [Product(1), 4])
+    couch.revert_transaction(1)
