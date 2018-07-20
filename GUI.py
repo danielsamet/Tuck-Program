@@ -68,6 +68,9 @@ class GUI:
         self.items_page = IntVar()
         self.items_page.set(1)
 
+        self.transactions_page = IntVar()
+        self.transactions_page.set(1)
+
         self.main_menu()
 
         root.mainloop()
@@ -82,12 +85,22 @@ class GUI:
                            command=lambda: self.setup())
         setup_btn.grid(row=0, column=0)
 
-        transaction_btn = Button(self.main_frame, text="TRANSACTIONS", bg=bg, font=font, width=18, height=3,
+        transaction_btn = Button(self.main_frame, text="SHOP", bg=bg, font=font, width=18, height=3,
                                  command=lambda: self.transactions())
         transaction_btn.grid(row=0, column=1)
 
+        transaction_btn = Button(self.main_frame, text="TRACK", bg=bg, font=font, width=18, height=3,
+                                 command=lambda: self.track())
+        transaction_btn.grid(row=0, column=2)
+
         Grid.columnconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 1, weight=1)
+        Grid.columnconfigure(self.main_frame, 2, weight=1)
+
         Grid.rowconfigure(self.main_frame, 0, weight=1)
+
+        Label(self.main_frame, text="By Daniel Samet", font=("Calibri", 13, "bold"), bg=self.background_bg).grid(
+            row=1, column=0, sticky=W)
+        Label(self.main_frame, text="V1.0", font=("Calibri", 13), bg=self.background_bg).grid(row=1, column=2, sticky=E)
 
     def setup(self):
         self._frame_reset(self.main_frame)
@@ -154,10 +167,10 @@ class GUI:
             centre_frame = Frame(frame, bg=self.background_bg)
             centre_frame.grid(row=0, column=1, sticky=E + W)
             Grid.columnconfigure(frame, 1, weight=100)
-            Button(frame, text="See History", font=font2, bg='red', width=15,
-                   command=lambda: self.display_history(lbl_txt, item_info[0], self.item_populator, caller, caller_name,
-                                                        item_info)
-                   ).grid(row=0, column=2, sticky=E)
+            if item_info is not None:
+                Button(frame, text="See History", font=font2, bg='red', width=15,
+                       command=lambda: self.display_history(lbl_txt, item_info[0], self.item_populator, caller,
+                                                            caller_name, item_info)).grid(row=0, column=2, sticky=E)
 
             row += 1
 
@@ -166,12 +179,18 @@ class GUI:
         def top_up():
             try:
                 budget_amount.set("£{0:.2f}".format(float(budget_amount.get()[1:]) + float(top_up_amount.get())))
+                item.top_up(amount=float(top_up_amount.get()))
+                item_info[3] = float(budget_amount.get().strip("£"))
+                messagebox.showinfo("Note", "Note that this topping up has auto saved the quantity!")
             except ValueError:
                 messagebox.showerror("Top Up Error", "Amount must be a valid number.")
 
         def add_quantity(to_update, amount):
             try:
                 to_update.set("{0}".format(int(to_update.get()) + int(amount.get())))
+                item.top_up(amount=int(to_update.get()))
+                item_info[5] = int(to_update.get())
+                messagebox.showinfo("Note", "Note that this topping up has auto saved the quantity!")
             except ValueError:
                 messagebox.showerror("Top Up Error", "Amount must be a valid number.")
             amount.set("")
@@ -201,7 +220,7 @@ class GUI:
                 else:
                     if budget_amount.get()[1:] != "£0.00":
                         update_top_ups = True
-                    top_up_total = float(budget_amount.get()[1:])  # under indented just to avoid IDE error message
+                    top_up_total = float(budget_amount.get()[1:])
                     if notes.get() != "":
                         update_notes = True
 
@@ -214,7 +233,7 @@ class GUI:
                 if update_l_name:
                     item.update_details(l_name=l_name.get())
                 if update_top_ups:
-                    item.update_details(balance=top_up_total)
+                    item.top_up(amount=top_up_total)
                 if update_notes:
                     item.update_details(notes=notes.get())
 
@@ -303,7 +322,7 @@ class GUI:
                 if update_sale_price:
                     item.update_details(sale_price=float(price_amount.get().strip("£")))
                 if update_quantity:
-                    item.update_details(quantity=int(top_up_total))
+                    item.top_up(amount=int(top_up_total))
                 if update_notes:
                     item.update_details(notes=notes.get())
 
@@ -462,7 +481,7 @@ class GUI:
                 else:
                     Label(self.main_frame, text="Amount (£)" if p_limit or limit_ or allowance_ else "Amount",
                           font=font1, bg=self.background_bg, width=title_width).grid(row=0, column=0, padx=title_padx,
-                                                                                     pady=title_pady, sticky=E + W)
+                                                                                     pady=title_pady)
                     col = 1
 
                     if discount_ or limit_ or p_discount or p_limit:
@@ -476,6 +495,8 @@ class GUI:
                 Label(self.main_frame, text="Active Until", font=font1, bg=self.background_bg, width=title_width).grid(
                     row=0, column=col+1, padx=title_padx, pady=title_pady, sticky=E + W)
 
+                # [Grid.columnconfigure(self.main_frame, i, weight=1) for i in range(6)]
+
                 row_ = int(1)
 
                 # list items
@@ -483,7 +504,7 @@ class GUI:
                 conditions = conditions[(page - 1) * condition_limit:page * condition_limit] \
                     if total_conditions >= page * condition_limit else conditions[(page - 1) * condition_limit:]
 
-                bgs, width, padx, pady, sticky = ["grey60", "grey40"], 10, 0, 2, E + W
+                bgs, width, padx, pady, sticky = ["grey60", "grey40"], 9, 0, 2, E + W
                 for condition in conditions:
                     bg = bgs[conditions.index(condition) % 2]
 
@@ -553,7 +574,7 @@ class GUI:
                 else:
                     amount = StringVar()
                     item_vars.append(amount)
-                    Entry(self.main_frame, font=font2, textvariable=amount, width=10).grid(row=row_, column=0, padx=100)
+                    Entry(self.main_frame, font=font2, textvariable=amount, width=10).grid(row=row_, column=0, padx=50)
 
                     if discount_ or limit_ or p_discount or p_limit:
                         if discount_ or p_discount:
@@ -588,20 +609,23 @@ class GUI:
                     return False
 
                 amount = StringVar() if "amount" not in locals() else amount
+                too_many_msg = "Unfortunately, only one per item is supported at this time."
 
-                Button(self.main_frame, text="ADD", bg='orange', font=font1,
+                Button(self.main_frame, text="ADD", bg='orange', font=font1, width=7,
                        command=lambda: self.combine_funcs(
                            item.add_discount(float(amount.get()), 1 if discount_type_.get() == "£" else 0,
                                              *get_formmated_dates())
                            if discount_ or p_discount else
                            item.add_spending_limit(float(amount.get()), limit_per_.get(), *get_formmated_dates())
                            if limit_ else
-                           item.add_sub_zero_allowance(float(amount.get()), *get_formmated_dates())
+                           (item.add_sub_zero_allowance(float(amount.get()), *get_formmated_dates())
+                            if len(conditions) == 0 else messagebox.showinfo("Too Many Allowances", too_many_msg))
                            if allowance_ else
                            item.add_purchase_limit(float(amount.get()), limit_per_.get(), *get_formmated_dates())
                            if p_limit else
                            item.add_offer(*[int(offer.get()) for offer in buy_get_off],
-                                          1 if offer_type.get() == "£" else 0, *get_formmated_dates()),
+                                          1 if offer_type.get() == "£" else 0, *get_formmated_dates())
+                           if len(conditions) == 0 else messagebox.showinfo("Too Many Offers", too_many_msg),
                            call_yourself())
                        if not check_fields_validity()
                        else messagebox.showerror("Null Error",
@@ -973,9 +997,10 @@ class GUI:
         Label(page_scrolling_frame, text="Page {0} of {1}".format(page, total_pages), bg=self.background_bg,
               font=font2).grid(row=0, column=1, padx=20)
 
-    def page_populator(self, caller, select_user=False):
+    def page_populator(self, caller, select_user=False, account_track=False, product_track=False):
         self._frame_reset(self.main_frame)
-        self.back_btn.config(command=lambda: self.setup())
+        self.back_btn.config(command=lambda: self.setup() if not select_user else self.transactions()
+                             if not (account_track or product_track) else self.track())
 
         call_item = self.account if caller == "Accounts" else self.product if caller == "Products" \
             else self.transactions
@@ -1007,8 +1032,10 @@ class GUI:
         for item in items:
             Button(item_frame, text=item[1] + " " + item[2] if caller in ["Accounts", "Transactions"] else item[1],
                    bg="orange", font=font, width=20, height=2,
-                   command=lambda item_info=item: call_item(item_info) if not select_user
-                   else self.transactions(item_info)).grid(row=row, column=col, pady=20)
+                   command=lambda item_info=list(item): call_item(item_info) if not select_user
+                   else self.transactions(item_info) if not (account_track or product_track)
+                   else self.product_stats(item_info) if product_track
+                   else self.account_purchase_history(item_info)).grid(row=row, column=col, pady=20)
             Grid.columnconfigure(item_frame, col, weight=1)
             col += 1
             if col == 5:
@@ -1016,7 +1043,7 @@ class GUI:
                 Grid.rowconfigure(item_frame, row, weight=1)
 
         if len(items) == 0:
-            Label(item_frame, text="No Items!", font=("Calibri", 36, "bold")).pack()
+            Label(item_frame, text="No Items!", font=("Calibri", 36, "bold"), bg=self.background_bg).pack()
 
         if not select_user:
             bg = "salmon"
@@ -1172,16 +1199,19 @@ class GUI:
                     add(quantity, product, position)
 
         self._frame_reset(self.main_frame)
-        self.back_btn.config(command=lambda: self.main_menu())
-        self.title.set("Transactions")
+        back_msg = "You will lose any data from this transaction and have to start again.\n\nAre you sure you want to" \
+                   " continue?"
+        self.back_btn.config(command=lambda: self.main_menu() if item_info is None else self.main_menu()
+                             if messagebox.askyesno("Confirm", back_msg) else None)
+        self.title.set("Transactions{0}".format(" - {0} {1}".format(*item_info[1:3]) if item_info is not None else ""))
 
-        product_frame = Frame(self.main_frame, bg='red')
+        product_frame = Frame(self.main_frame, bg=self.background_bg)
         product_frame.grid(row=0, column=0, sticky=N + E + S + W)
 
-        transactions_frame = Frame(self.main_frame, bg='green2')
+        transactions_frame = Frame(self.main_frame, bg=self.background_bg)
         transactions_frame.grid(row=0, column=1, rowspan=2, sticky=N + S)
 
-        actions_frame = Frame(self.main_frame, bg='purple')
+        actions_frame = Frame(self.main_frame, bg=self.background_bg)
         actions_frame.grid(row=1, column=0, sticky=E + W)
 
         Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 0, weight=1)
@@ -1189,50 +1219,81 @@ class GUI:
         font1, font2 = (self.font_name, 19, "bold"), (self.font_name, 16)
         font3, font4 = (self.font_name, 14, "bold"), (self.font_name, 14)
 
-        row_limit, column_limit = 6, 5
-        row, col = int(), int()
+        column_limit = 5
 
-        for product in get_products():
-            frame = Frame(product_frame, bg='blue4')
-            frame.grid(row=row, column=col, padx=10, pady=(14, 0), sticky=E + W)
+        page_actions_frame = Frame(actions_frame, bg=self.background_bg)
+        page_actions_frame.grid(row=0, column=1, sticky=E)
 
-            Label(frame, text=product[1], font=font1, width=13).grid(row=0, column=0, sticky=E + W)
-            Label(frame, text="£{0:.2f}".format(product[4]), font=font2).grid(row=1, column=0, sticky=E + W)
+        curr_page = StringVar()
 
-            def no_user(): messagebox.showerror("Must Select User", "Please select a user before adding items!")
+        back_btn = Button(page_actions_frame, text="Previous Page", font=font1)
+        back_btn.grid(row=0, column=0, padx=10)
+        Label(page_actions_frame, textvariable=curr_page, font=font1, bg=self.background_bg).grid(
+            row=0, column=1, padx=10)
+        forward_btn = Button(page_actions_frame, text="Next Page", font=font1)
+        forward_btn.grid(row=0, column=2, padx=10)
 
-            Button(frame, text="+", font=font2, width=3, command=lambda item=product: add_transaction(item)
-                   if item_info is not None else no_user()).grid(row=0, column=1)
-            Button(frame, text="-", font=font2, width=3, command=lambda item=product: remove_transaction(item)
-                   if item_info is not None else no_user()).grid(row=1, column=1)
+        products = get_products()
 
-            Grid.columnconfigure(frame, 0, weight=1)
+        total_products, page_limit = len(products), 30
+        total_pages = ceil(total_products / page_limit) if total_products > 0 else 1
 
-            col += 1
+        def product_populator(page=1):
+            row, col = int(), int()
 
-            if col == column_limit:
-                row += 1
-                col = 0
+            self._frame_reset(product_frame)
 
-            if row == row_limit:
-                break
+            curr_page.set(f"{page} of {total_pages}")
+            back_btn.config(command=lambda: product_populator(page-1) if page > 1 else None)
+            forward_btn.config(command=lambda: product_populator(page+1) if page < total_pages else None)
 
-        transactions_individual = Frame(transactions_frame, bg='pink')
+            products_ = products[(page - 1) * page_limit:page * page_limit] if total_products >= page * page_limit \
+                else products[(page - 1) * page_limit:]
+
+            for product in products_:
+                frame = Frame(product_frame, bg='LightSkyBlue3')
+                frame.grid(row=row, column=col, padx=10, pady=(14, 0), sticky=E + W)
+
+                Label(frame, text=product[1], font=font1, width=13, bg='LightSkyBlue3').grid(row=0, column=0,
+                                                                                             sticky=E + W)
+                Label(frame, text="£{0:.2f}".format(product[4]), font=font2, bg='LightSkyBlue3').grid(row=1, column=0,
+                                                                                                      sticky=E + W)
+
+                def no_user():
+                    messagebox.showerror("Must Select User", "Please select a user before adding items!")
+
+                Button(frame, text="+", font=font2, width=3, bg="orange",
+                       command=lambda item=product: add_transaction(item)
+                       if item_info is not None else no_user()).grid(row=0, column=1)
+                Button(frame, text="-", font=font2, width=3, bg="orange",
+                       command=lambda item=product: remove_transaction(item)
+                       if item_info is not None else no_user()).grid(row=1, column=1)
+
+                Grid.columnconfigure(frame, 0, weight=1)
+
+                col += 1
+
+                if col == column_limit:
+                    row += 1
+                    col = 0
+
+        product_populator()
+        transactions_individual = Frame(transactions_frame, bg='white')
         transactions_individual.grid(row=0, column=0, sticky=N + E + S + W)
 
         transactions = dict()
 
-        user_frame = Frame(transactions_frame)
+        user_frame = Frame(transactions_frame, bg=self.background_bg)
         user_frame.grid(row=1, column=0, pady=10, padx=10, sticky=E + W + S)
 
         if item_info is None:
-            Button(user_frame, text="Select User", font=font1,
+            Button(user_frame, text="Select User", font=font1, bg='orange',
                    command=lambda: self.page_populator("Transactions", select_user=True)).grid(row=0, column=0,
                                                                                                sticky=E + W, padx=4)
         else:
-            Label(user_frame, text="Account Discount", font=font3).grid(row=0, column=0, sticky=W)
-            Label(user_frame, text="Account Spending Limit", font=font3).grid(row=1, column=0, sticky=W)
-            Label(user_frame, text="Account Sub Zero Allowance", font=font3).grid(row=2, column=0, sticky=W)
+            Label(user_frame, text="Account Discount", font=font3, bg=self.background_bg).grid(row=0, column=0, sticky=W)
+            Label(user_frame, text="Account Spending Limit", font=font3, bg=self.background_bg).grid(row=1, column=0, sticky=W)
+            Label(user_frame, text="Account Sub Zero Allowance", font=font3, bg=self.background_bg).grid(row=2, column=0, sticky=W)
 
             try:
                 discounts = get_account_conditions(account_id=item_info[0], discount=True)
@@ -1258,9 +1319,9 @@ class GUI:
             except IndexError:
                 allowance = float()
 
-            Label(user_frame, text="{0:.2f}%".format(discount), font=font4).grid(row=0, column=1, sticky=E)
-            Label(user_frame, text="£{0:.2f}".format(limit), font=font4).grid(row=1, column=1, sticky=E)
-            Label(user_frame, text="£{0:.2f}".format(allowance), font=font4).grid(row=2, column=1, sticky=E)
+            Label(user_frame, text="{0:.2f}%".format(discount), font=font4, bg=self.background_bg).grid(row=0, column=1, sticky=E)
+            Label(user_frame, text="£{0:.2f}".format(limit), font=font4, bg=self.background_bg).grid(row=1, column=1, sticky=E)
+            Label(user_frame, text="£{0:.2f}".format(allowance), font=font4, bg=self.background_bg).grid(row=2, column=1, sticky=E)
 
         Grid.columnconfigure(user_frame, 0, weight=1)
 
@@ -1283,44 +1344,277 @@ class GUI:
         new_balance.set(f"£{balance:.2f}")
         Label(total_frame, textvariable=new_balance, font=font4).grid(row=2, column=1, sticky=E)
 
-        Button(transactions_frame, text="Purchase", font=font1, width=23,
+        Button(transactions_frame, text="Purchase", font=font1, width=23, bg="green2",
                command=lambda: self.combine_funcs(
                    Transaction().record_transaction(Account(item_info[0]),
                                                     *[[Product(product[0]), quantity] for product, quantity
                                                       in transactions.items()]),
-                   self.transactions(item_info=get_accounts(account_id=item_info[0])[0])))\
+                   messagebox.showinfo("Successful", "Transaction was successful!"),
+                   self.transactions()))\
             .grid(row=5, column=0, pady=10, padx=10, sticky=E + W + S)
 
         Grid.rowconfigure(transactions_frame, 0, weight=1)
 
         msg = "This will reset the current transaction and deselect the current user.\n\nAre you sure you want to " \
               "continue?"
-        Button(actions_frame, text="Cancel", font=font1,
+        Button(actions_frame, text="Cancel", font=font1, bg="DarkOrange2",
                command=lambda: self.transactions() if messagebox.askyesno("Cancel", msg) else None).grid(row=0,
                                                                                                          column=0)
 
-        page_actions_frame = Frame(actions_frame)
-        page_actions_frame.grid(row=0, column=1, sticky=E)
-
-        Button(page_actions_frame, text="Previous Page", font=font1, state=DISABLED).grid(row=0, column=0, padx=10)
-        Label(page_actions_frame, text="1 of 1", font=font1).grid(row=0, column=1, padx=10)
-        Button(page_actions_frame, text="Next Page", font=font1, state=DISABLED).grid(row=0, column=2, padx=10)
-
         Grid.columnconfigure(actions_frame, 1, weight=1)
+
+    def track(self):
+        self._frame_reset(self.main_frame)
+        self.back_btn.config(command=lambda: self.main_menu())
+        self.title.set("Track")
+
+        font, bg = ("Calibri", 22, "bold"), "orange"
+        Button(self.main_frame, text="Account Purchase History", font=font, bg=bg, width=25, height=2,
+               command=lambda: self.page_populator("Accounts", select_user=True, account_track=True)).grid(row=0,
+                                                                                                           column=0)
+
+        Button(self.main_frame, text="Product Stats", font=font, bg=bg, width=25, height=2,
+               command=lambda: self.page_populator("Products", select_user=True, product_track=True)).grid(row=0,
+                                                                                                           column=1)
+
+        Button(self.main_frame, text="Overall Stats", font=font, bg=bg, width=25, height=2,
+               command=lambda: stats()).grid(row=0, column=2)
+
+        Grid.rowconfigure(self.main_frame, 0, weight=1)
+        Grid.columnconfigure(self.main_frame, 0, weight=1)
+        Grid.columnconfigure(self.main_frame, 1, weight=1)
+        Grid.columnconfigure(self.main_frame, 2, weight=1)
+
+        def stats():
+            self._frame_reset(self.main_frame)
+            self.back_btn.config(command=lambda: self.track())
+            self.title.set("Track - Stats")
+
+            # calc stats
+            budget = sum(sum(top_up[1] for top_up in get_item_history("accounts_top_ups", "account_id", account[0]))
+                         for account in get_accounts())
+
+            income = sum(transaction[2] for transaction in get_transactions())
+
+            expense = \
+                sum(get_item_history("products_cost_price", "product_id", product[0])[-1][1] *
+                    sum(top_up[1] for top_up in get_item_history("products_quantity_top_ups", "product_id", product[0]))
+                    for product in get_products())
+            # issue with the above calculation is that it does not take into account the price for different quantities
+            # (assuming they had changed)
+
+            profit = income - expense
+
+            # present them
+            font1, font2 = ("Calibri", 18, "bold"), ("Calibri", 18)
+
+            frame = Frame(self.main_frame, bg=self.background_bg)
+            frame.grid(row=0, column=0)
+
+            Label(frame, text="Total Accounts Budget:", font=font1, bg=self.background_bg).grid(row=0, column=0,
+                                                                                                sticky=W)
+            Label(frame, text="Total Income:", font=font1, bg=self.background_bg).grid(row=1, column=0, sticky=W)
+            Label(frame, text="Total Expenses:", font=font1, bg=self.background_bg).grid(row=2, column=0, sticky=W)
+            Label(frame, text="Total Profit:", font=font1, bg=self.background_bg).grid(row=3, column=0, sticky=W)
+
+            Label(frame, text=f"£{budget:.2f}", font=font1, bg=self.background_bg).grid(row=0, column=1, padx=(100, 0))
+            Label(frame, text=f"£{income:.2f}", font=font1, bg=self.background_bg).grid(row=1, column=1, padx=(100, 0))
+            Label(frame, text=f"£{expense:.2f}", font=font1, bg=self.background_bg).grid(row=2, column=1, padx=(100, 0))
+            Label(frame, text=f"£{profit:.2f}", font=font1, bg=self.background_bg).grid(row=3, column=1, padx=(100, 0))
+
+            Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 0, weight=1)
+
+    def product_stats(self, product):
+        self._frame_reset(self.main_frame)
+        self.back_btn.config(command=lambda: self.track())
+        self.title.set(f"Purchase History - {product[1]}")
+
+        starting_qty = sum(top_up[1] for top_up in get_item_history("products_quantity_top_ups", "product_id",
+                                                                    product[0]))
+        current_qty = product[5]
+        cost = product[3]
+        sale = product[4]
+        income = sale - cost
+        ttl_cost = starting_qty * cost
+        ttl_income = (starting_qty - current_qty) * income
+        ttl_profit = ttl_income - ttl_cost
+
+        font1, font2 = ("Calibri", 18, "bold"), ("Calibri", 18)
+
+        frame = Frame(self.main_frame, bg=self.background_bg)
+        frame.grid(row=0, column=0)
+
+        Label(frame, text="Starting Qty:", font=font1, bg=self.background_bg).grid(row=0, column=0, sticky=W)
+        Label(frame, text="Current Qty:", font=font1, bg=self.background_bg).grid(row=1, column=0, sticky=W)
+        Label(frame, text="Cost per Item:", font=font1, bg=self.background_bg).grid(row=2, column=0, sticky=W)
+        Label(frame, text="Sale Price:", font=font1, bg=self.background_bg).grid(row=3, column=0, sticky=W)
+        Label(frame, text="Income per Item:", font=font1, bg=self.background_bg).grid(row=4, column=0, sticky=W)
+        Label(frame, text="Total Cost:", font=font1, bg=self.background_bg).grid(row=5, column=0, sticky=W)
+        Label(frame, text="Total Income:", font=font1, bg=self.background_bg).grid(row=6, column=0, sticky=W)
+        Label(frame, text="Total Profit:", font=font1, bg=self.background_bg).grid(row=7, column=0, sticky=W)
+
+        Label(frame, text=starting_qty, font=font1, bg=self.background_bg).grid(row=0, column=1, padx=(100, 0))
+        Label(frame, text=current_qty, font=font1, bg=self.background_bg).grid(row=1, column=1, padx=(100, 0))
+        Label(frame, text=f"£{cost:.2f}", font=font1, bg=self.background_bg).grid(row=2, column=1, padx=(100, 0))
+        Label(frame, text=f"£{sale:.2f}", font=font1, bg=self.background_bg).grid(row=3, column=1, padx=(100, 0))
+        Label(frame, text=f"£{income:.2f}", font=font1, bg=self.background_bg).grid(row=4, column=1, padx=(100, 0))
+        Label(frame, text=f"£{ttl_cost:.2f}", font=font1, bg=self.background_bg).grid(row=5, column=1, padx=(100, 0))
+        Label(frame, text=f"£{ttl_income:.2f}", font=font1, bg=self.background_bg).grid(row=6, column=1, padx=(100, 0))
+        Label(frame, text=f"£{ttl_profit:.2f}", font=font1, bg=self.background_bg).grid(row=7, column=1, padx=(100, 0))
+
+        Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 0, weight=1)
+
+    def account_purchase_history(self, account, page=1):
+        self._frame_reset(self.main_frame)
+        self.back_btn.config(command=lambda: self.track())
+        self.title.set(f"Account History - {account[1]} {account[2]}")
+
+        starting_budget = sum(top_up[1] for top_up in get_item_history("accounts_top_ups", "account_id", account[0]))
+
+        current_budget = account[3]
+
+        ttl_spent = starting_budget - current_budget
+
+        font1, font2 = ("Calibri", 24, "bold"), ("Calibri", 24)
+        font3, font4 = ("Calibri", 18, "bold"), ("Calibri", 18)
+
+        frame = Frame(self.main_frame, bg=self.background_bg)
+        frame.grid(row=0, column=0, sticky=N + E + W, pady=40)
+
+        Label(frame, text="Starting Budget:", font=font1, bg=self.background_bg, relief=RAISED).grid(row=0, column=0, ipadx=10)
+        Label(frame, text="Current Budget:", font=font1, bg=self.background_bg, relief=RAISED).grid(row=0, column=2, ipadx=10)
+        Label(frame, text="Total Money Spent:", font=font1, bg=self.background_bg, relief=RAISED).grid(row=0, column=4, ipadx=10)
+
+        Label(frame, text=f"£{starting_budget:.2f}", font=font2, bg=self.background_bg).grid(row=0, column=1, sticky=W)
+        Label(frame, text=f"£{current_budget:.2f}", font=font2, bg=self.background_bg).grid(row=0, column=3, sticky=W)
+        Label(frame, text=f"£{ttl_spent:.2f}", font=font2, bg=self.background_bg).grid(row=0, column=5, sticky=W)
+
+        Grid.rowconfigure(self.main_frame, 0, weight=0), Grid.rowconfigure(self.main_frame, 1, weight=1)
+        Grid.columnconfigure(self.main_frame, 0, weight=1)
+        [Grid.columnconfigure(frame, i, weight=1) for i in range(6)]
+
+        transaction_frame = Frame(self.main_frame, bg=self.background_bg)
+        transaction_frame.grid(row=1, column=0, sticky=N + S + E + W)
+
+        Label(transaction_frame, text="Transaction Code", font=font3, bg=self.background_bg).grid(row=0, column=0)
+        Label(transaction_frame, text="Transaction Amount", font=font3, bg=self.background_bg).grid(row=0, column=1)
+        Label(transaction_frame, text="Transaction Date", font=font3, bg=self.background_bg).grid(row=0, column=2)
+        Label(transaction_frame, text="Action", font=font3, bg=self.background_bg).grid(row=0, column=3)
+
+        [Grid.columnconfigure(transaction_frame, i, weight=1) for i in range(4)]
+
+        transactions = get_transactions(account[0])
+
+        page_limit, total_items = 9, len(transactions)
+        total_pages = ceil(total_items / page_limit) if total_items > 0 else 1
+
+        transactions = transactions[(page - 1) * page_limit:page * page_limit]  if total_items >= page * page_limit \
+            else transactions[(page - 1) * page_limit:]
+
+        for transaction in transactions:
+            row = transactions.index(transaction) + 1
+
+            date = datetime.strptime(transaction[3], "%Y-%m-%d %H:%M:%S.%f").replace(microsecond=0)
+
+            Label(transaction_frame, text=transaction[0], font=font4, bg=self.background_bg).grid(row=row, column=0)
+            Label(transaction_frame, text=f"£{transaction[2]:.2f}", font=font4, bg=self.background_bg).grid(row=row,
+                                                                                                            column=1)
+            Label(transaction_frame, text=date, font=font4, bg=self.background_bg).grid(row=row, column=2)
+            temp_frame = Frame(transaction_frame, bg=self.background_bg)
+            temp_frame.grid(row=row, column=3)
+            Button(temp_frame, text="See Details", font=font4, bg="orange", width=15,
+                   command=lambda item=transaction: transaction_products(item)).grid(row=0, column=0)
+            Button(temp_frame, text="Undo", font=font4, bg="red2", width=15,
+                   command=lambda item=transaction: self.combine_funcs(Transaction().revert_transaction(item[0]),
+                                                                       self.account_purchase_history(
+                                                                           [*account[:3], account[3] + transaction[2],
+                                                                            *account[4:]]))
+                   ).grid(row=0, column=1)
+
+        page_frame = Frame(self.main_frame, bg=self.background_bg)
+        page_frame.grid(row=2, column=0, pady=15)
+
+        Button(page_frame, text="Previous Page", font=font3, bg="orange", width=15,
+               command=lambda: self.account_purchase_history(account, page=page-1) if page > 1 else None
+               ).grid(row=0, column=0)
+        Label(page_frame, text=f"{page} of {total_pages}", font=font4, bg=self.background_bg).grid(row=0, column=1,
+                                                                                                   padx=25)
+        Button(page_frame, text="Next Page", font=font3, bg="orange", width=15,
+               command=lambda: self.account_purchase_history(account, page=page+1) if page < total_pages else None
+               ).grid(row=0, column=2)
+
+        def transaction_products(transaction_, page_=1):
+            self._frame_reset(self.main_frame)
+            self.back_btn.config(command=lambda: self.account_purchase_history(account=account))
+            self.title.set(f"Transaction Products")
+
+            top_frame = Frame(self.main_frame, bg=self.background_bg)
+            top_frame.grid(row=0, column=0, pady=40)
+            Grid.columnconfigure(self.main_frame, 0, weight=1)
+
+            Label(top_frame, text="Transaction Total:", font=font1, bg=self.background_bg, relief=RAISED
+                  ).grid(row=0, column=0, ipadx=10)
+            Label(top_frame, text=f"£{transaction_[2]:.2f}", font=font2, bg=self.background_bg).grid(row=0, column=1,
+                                                                                                     padx=20)
+
+            main_frame = Frame(self.main_frame, bg=self.background_bg)
+            main_frame.grid(row=1, column=0, sticky=N + S + E + W)
+
+            Grid.rowconfigure(self.main_frame, 1, weight=1)
+
+            Label(main_frame, text="Product Name", font=font3, bg=self.background_bg).grid(row=0, column=0)
+            Label(main_frame, text="Product Price", font=font3, bg=self.background_bg).grid(row=0, column=1)
+            Label(main_frame, text="Quantity", font=font3, bg=self.background_bg).grid(row=0, column=2)
+            Label(main_frame, text="Total Cost", font=font3, bg=self.background_bg).grid(row=0, column=3)
+
+            [Grid.columnconfigure(main_frame, i, weight=1) for i in range(4)]
+
+            details = get_transactions_details(transaction_[0])
+
+            page_limit_, total_items_ = 8, len(details)
+            total_pages_ = ceil(total_items_ / page_limit_) if total_items_ > 0 else 1
+
+            details = details[(page_ - 1) * page_limit_:page_ * page_limit_] if total_items_ >= page_ * page_limit_ \
+                else details[(page_ - 1) * page_limit_:]
+
+            for item in details:
+                product = get_products(product_id=item[1])[0]
+                row = details.index(item) + 1
+
+                Label(main_frame, text=product[1], font=font4, bg=self.background_bg).grid(row=row, column=0)
+                Label(main_frame, text=f"£{product[4]:.2f}", font=font4, bg=self.background_bg).grid(row=row, column=1)
+                Label(main_frame, text=item[2], font=font4, bg=self.background_bg).grid(row=row, column=2)
+                Label(main_frame, text=f"£{product[4] * item[2]:.2f}", font=font4, bg=self.background_bg).grid(row=row,
+                                                                                                               column=3)
+
+            note = "Note: the price of individual items listed here will not include any discounts or offers"
+            Label(self.main_frame, text=note, font=font4, bg=self.background_bg).grid(row=2, column=0, columnspan=3, pady=10, sticky=S)
+
+            page_frame_ = Frame(self.main_frame, bg=self.background_bg)
+            page_frame_.grid(row=3, column=0, pady=15)
+
+            Button(page_frame_, text="Previous Page", font=font3, bg="orange", width=15,
+                   command=lambda: transaction_products(transaction_, page_=page-1) if page > 1 else None
+                   ).grid(row=0, column=0)
+            Label(page_frame_, text=f"{page_} of {total_pages_}", font=font4, bg=self.background_bg
+                  ).grid(row=0, column=1, padx=25)
+            Button(page_frame_, text="Next Page", font=font3, bg="orange", width=15,
+                   command=lambda: transaction_products(transaction_, page_=page+1) if page < total_pages else None
+                   ).grid(row=0, column=2)
 
     def create_type_dropdown(self, frame, font=("Calibri", 20, "bold")):
         type_ = StringVar()
         type_.set("%")
         drop_down = OptionMenu(frame, type_, "%", "£")
-        drop_down.config(font=font, bg=self.background_bg)
-        drop_down.nametowidget(drop_down.menuname).configure(font=font, bg=self.background_bg)
+        drop_down.config(font=font, state=DISABLED)
+        drop_down.nametowidget(drop_down.menuname).configure(font=font, bg=self.background_bg, fg="black")
         return type_, drop_down
 
     def create_limit_drop_down(self, frame, font=("Calibri", 20, "bold")):
         limit_ = StringVar()
-        limit_.set("day")
+        limit_.set("transaction")
         drop_down = OptionMenu(frame, limit_, "transaction", "day", "week", "month", "year")
-        drop_down.config(font=font)
+        drop_down.config(state=DISABLED, font=font)
         drop_down.nametowidget(drop_down.menuname).configure(font=font)
 
         return limit_, drop_down
@@ -1349,7 +1643,7 @@ class GUI:
                 try:
                     if caller == "Accounts":
                         new_item.add_account(f_name=item[0], l_name=item[1])
-                        new_item.update_details(balance=float(item[2].strip("£")))
+                        new_item.top_up(amount=float(item[2].strip("£")))
                     else:
                         new_item.add_product(p_name=item[0])
                         new_item.update_details(cost_price=float(item[1].strip("£")),
