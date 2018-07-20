@@ -63,7 +63,7 @@ def get_accounts(account_id=None, f_name=None, l_name=None, top_ups=None, notes=
 
     where += "{0}accounts.void != 1".format(" AND " if where != " WHERE " else "")
 
-    sql_command = select + " FROM accounts " + join + where
+    sql_command = select + " FROM accounts " + join + where + " ORDER BY l.name, f.name"
 
     return _db_execute(sql_command)
 
@@ -107,11 +107,9 @@ def get_products(product_id=None, name=None, supplier=None, notes=None):
             where += "{0}=\"{1}\"".format(key, val)
             count += 1
 
-    where += " WHERE products.void != 1"
+    where += " {0} products.void != 1".format("WHERE" if where == "" else "AND")
 
-    sql_command = select + " FROM products " + join + where
-
-    # sql_command = "SELECT * FROM products WHERE void != 1"
+    sql_command = select + " FROM products " + join + where + " ORDER BY p.name"
 
     return _db_execute(sql_command)
 
@@ -177,12 +175,19 @@ def update(table_name, fields, primary_key):
     _db_execute(sql_command)
 
 
-def get_transactions():
-    pass
+def get_transactions(account_id=None):
+    return _db_execute("SELECT * FROM transactions WHERE void = 0{0}".format(
+        f" AND account_id={account_id}" if account_id is not None else ""))
+
+
+def get_transactions_details(transaction_id):
+    cmd = f"SELECT * FROM transactions_products WHERE transaction_ID={transaction_id}"
+
+    return _db_execute(cmd)
 
 
 if __name__ == '__main__':
-    # print(get_accounts())
+    print(get_accounts())
     # print(get_account_conditions(account_id=6, discount=True))
     # from datetime import datetime
     # insert_new("accounts_l_name", [1, "Daniel", datetime.now()])
