@@ -119,14 +119,14 @@ class Transaction(Inherit):
     def revert_transaction(self, transaction_id):
         """reverts the transaction in database by voiding it and then reverting its effects (refunding etc.)"""
 
-        self._db_execute(f"UPDATE transactions SET void=1 WHERE transaction_ID={transaction_id}")
+        self._db_execute("UPDATE transactions SET void=1 WHERE transaction_ID={0}".format(transaction_id))
         account_id, amount = self._db_execute("SELECT account_id, amount FROM transactions "
-                                              f"WHERE transaction_ID={transaction_id}")[0]
+                                              "WHERE transaction_ID={0}".format(transaction_id))[0]
         Account(account_id).update_details(balance=amount)
         for product_id, quantity in self._db_execute("SELECT product_ID, quantity FROM transactions_products "
-                                                     f"WHERE transaction_id={transaction_id}"):
-            quantity += self._db_execute(f"SELECT quantity FROM products WHERE product_ID={product_id}")[0][0]
-            self._db_execute(f"UPDATE products SET quantity={quantity} WHERE product_ID={product_id}")
+                                                     "WHERE transaction_id={0}".format(transaction_id)):
+            quantity += self._db_execute("SELECT quantity FROM products WHERE product_ID={0}".format(product_id))[0][0]
+            self._db_execute("UPDATE products SET quantity={0} WHERE product_ID={1}".format(quantity, product_id))
 
     def _check_transaction_not(self, msg):
         """internal use only - checks if transaction exists, raising an error if it does"""
