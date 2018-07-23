@@ -1,5 +1,7 @@
 import sqlite3
 
+path = ""
+
 
 def _db_open(database_name, foreign_keys=True):
     """internal use only - opens connections to database"""
@@ -15,7 +17,7 @@ def _db_open(database_name, foreign_keys=True):
 def _db_execute(sql_command, *parameters):
     """internal use only - executes commands on database and returns results"""
 
-    connection, cursor = _db_open("tuck.db")
+    connection, cursor = _db_open(path + "\\tuck.db")
 
     try:
         cursor.execute(sql_command, *parameters)
@@ -177,16 +179,294 @@ def update(table_name, fields, primary_key):
 
 def get_transactions(account_id=None):
     return _db_execute("SELECT * FROM transactions WHERE void = 0{0}".format(
-        f" AND account_id={account_id}" if account_id is not None else ""))
+        " AND account_id={}".format(account_id) if account_id is not None else ""))
 
 
 def get_transactions_details(transaction_id):
-    cmd = f"SELECT * FROM transactions_products WHERE transaction_ID={transaction_id}"
+    cmd = "SELECT * FROM transactions_products WHERE transaction_ID={0}".format(transaction_id)
 
     return _db_execute(cmd)
 
 
+def export(path):
+    path = path.strip(".csv") + ".csv"
+    with open(path, "w") as w:
+        tables = [item[0] for item in _db_execute("SELECT name FROM sqlite_master WHERE type='table';")]
+        for table in tables:
+            w.write("{0}\n".format(table))
+            column_headings = _db_execute("PRAGMA TABLE_INFO({})".format(table))
+            column_headings = [item[1] for item in column_headings]
+            w.write(", ".join(str(item) for item in column_headings))
+            w.write("\n")
+            for row in _db_execute("SELECT * FROM {}".format(table)):
+                (w.write(", ".join(str(item) for item in row)))
+                w.write("\n")
+            w.write("\n")
+
+
+def prep_db():
+    sql_command = list()
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts (
+            account_ID INTEGER PRIMARY KEY,
+            balance INTEGER NOT NULL,
+            date_added DATE NOT NULL,
+            void INTEGER(1) NOT NULL
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_f_name (
+            account_ID INETEGER,
+            name VARCHAR(20) NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_l_name (
+            account_ID INTEGER,
+            name VARCHAR(30) NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_top_ups (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """
+    )
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_discounts (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            type INTEGER(1) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER(1) NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_spending_limit (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            per VARCHAR(10) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_sub_zero_allowance (
+            account_ID INTEGER,
+            amount INTEGER NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE accounts_notes (
+            account_ID INTEGER,
+            notes VARCHAR(255),
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products (
+            product_ID INTEGER PRIMARY KEY,
+            quantity INTEGER,
+            date_added DATE NOT NULL,
+            void INTEGER NOT NULL
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_name (
+            product_ID INTEGER,
+            name VARCHAR(30) NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_supplier (
+            product_ID INTEGER,
+            name VARCHAR(30) NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_cost_price (
+            product_ID INTEGER,
+            price INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_sale_price (
+            product_ID INTEGER,
+            price INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_quantity_top_ups (
+            product_ID INTEGER,
+            amount INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_discounts (
+            product_ID INTEGER,
+            amount INTEGER NOT NULL,
+            type VARCHAR(1) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_purchase_limit (
+            product_ID INTEGER,
+            amount INTEGER NOT NULL,
+            per VARCHAR(10) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_offers (
+            product_ID INTEGER,
+            buy_x INTEGER NOT NULL,
+            get_y INTEGER NOT NULL,
+            z_off INTEGER NOT NULL,
+            type INTEGER(1) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            void INTEGER NOT NULL,
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE products_notes (
+            product_ID INTEGER,
+            notes VARCHAR(255),
+            date DATE PRIMARY KEY,
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE transactions (
+            transaction_ID INTEGER PRIMARY KEY,
+            account_ID INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            date DATE NOT NULL,
+            void INTEGER NOT NULL,
+                FOREIGN KEY (account_ID) REFERENCES accounts(account_ID)
+        );
+
+        """)
+    sql_command.append(
+        """
+
+        CREATE TABLE transactions_products (
+            transaction_ID INTEGER,
+            product_ID INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+                PRIMARY KEY (transaction_ID, product_ID, quantity),
+                FOREIGN KEY (transaction_ID) REFERENCES transactions(transaction_ID),
+                FOREIGN KEY (product_ID) REFERENCES products(product_ID)
+        );
+
+        """)
+
+    for command in sql_command:
+        try:
+            _db_execute(command)
+        except sqlite3.OperationalError:  # tables already exist (no need to worry abt one existing and not another)
+            pass
+
+
 if __name__ == '__main__':
+    # path = "C:\\Users\danie\Documents\\tuck.db"
+    print(path)
     print(get_accounts())
     # print(get_account_conditions(account_id=6, discount=True))
     # from datetime import datetime
