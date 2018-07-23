@@ -2,6 +2,9 @@ import sqlite3
 from datetime import datetime
 
 
+path = ""
+
+
 class Inherit:
     """this class is designed purely for code sharing amongst different classes to reduce code duplication - not
     intended to be instantiated by alone"""
@@ -21,7 +24,7 @@ class Inherit:
     def _db_execute(self, sql_command, *parameters):
         """internal use only - executes commands on database and returns results"""
 
-        connection, cursor = self._db_open("tuck.db")
+        connection, cursor = self._db_open(path + "\\tuck.db")
 
         try:
             cursor.execute(sql_command, *parameters)
