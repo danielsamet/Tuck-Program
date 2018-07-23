@@ -1,13 +1,13 @@
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from db_interface import *
+import db_interface
 import date_picker
 from datetime import datetime, timedelta
 from math import ceil
 from accounts import Account
 from products import Product
 from transaction import Transaction
-import db_interface
 import inherit_parent
 import ctypes.wintypes
 
@@ -1328,6 +1328,8 @@ class GUI:
                 if col == column_limit:
                     row += 1
                     col = 0
+
+            [Grid.columnconfigure(product_frame, i, weight=1) for i in range(column_limit)]
 
         product_populator()
         transactions_individual = Frame(transactions_frame, bg='white')
