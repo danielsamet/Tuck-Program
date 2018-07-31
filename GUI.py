@@ -32,7 +32,7 @@ class GUI:
 
         root.state('zoomed')
 
-        width, height = 1000, 700
+        width, height = 1400, 700
         root.minsize(width, height)
 
         self.background_bg = "grey50"
@@ -85,6 +85,8 @@ class GUI:
         self.transactions_page = IntVar()
         self.transactions_page.set(1)
 
+        self.letters, self.numbers = 'abcdefghijklmnopqrstuvwxyz', '0123456789'
+
         self.main_menu()
 
         root.mainloop()
@@ -122,6 +124,7 @@ class GUI:
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.main_menu())
         self.title.set("Tuck Shop")
+        self._unbind()
 
         font, bg = (self.font_name, 28, "bold"), "DarkOrange2"
 
@@ -154,6 +157,8 @@ class GUI:
 
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: caller())
+
+        self._unbind()
 
         account = True if caller_name == "Account" else False
 
@@ -261,8 +266,8 @@ class GUI:
                                        in get_account_conditions(account_id=item_info[0], discount=True)]
                     if discount_ not in saved_discounts:
                         insert_new("accounts_discounts", [item_info[0], discount_[0],
-                                                          1 if discount_[1] == "£" else 0, discount_[2], discount_[3], 0,
-                                                          datetime.now()])
+                                                          1 if discount_[1] == "£" else 0, discount_[2], discount_[3],
+                                                          0, datetime.now()])
                 for limit_ in active_limits:
                     saved_limits = [(limit_[1:]) for limit_ in get_account_conditions(account_id=item_info[0],
                                                                                       spending_limit=True)]
@@ -1038,7 +1043,7 @@ class GUI:
         Label(page_scrolling_frame, text="Page {0} of {1}".format(page, total_pages), bg=self.background_bg,
               font=font2).grid(row=0, column=1, padx=20)
 
-    def page_populator(self, caller, select_user=False, account_track=False, product_track=False):
+    def page_populator(self, caller, select_user=False, account_track=False, product_track=False, filter_=None):
         self._frame_reset(self.main_frame)
         self.back_btn.config(command=lambda: self.setup() if not select_user else self.transactions()
                              if not (account_track or product_track) else self.track())
@@ -1046,9 +1051,11 @@ class GUI:
         call_item = self.account if caller == "Accounts" else self.product if caller == "Products" \
             else self.transactions
 
-        items = get_accounts() if caller in ["Accounts", "Transactions"] else get_products()
+        items = get_accounts(filter_=filter_) if caller in ["Accounts", "Transactions"] \
+            else get_products()
 
-        self.title.set("{0} ({1})".format(caller, len(items)))
+        self.title.set("{0} ({1}){2}".format(caller, len(items), " - {0}".format(filter_)
+                       if filter_ is not None and filter_ != "" else ""))
 
         item_frame = Frame(self.main_frame, bg=self.background_bg)
         item_frame.grid(row=0, column=0, sticky=E + W)
@@ -1066,6 +1073,10 @@ class GUI:
 
         total_items, page, page_limit = len(items), self.items_page.get(), 35
         total_pages = ceil(total_items/page_limit) if total_items > 0 else 1
+
+        if page > total_pages:
+            self.items_page.set(total_pages)
+            self.page_populator(caller, select_user, account_track, product_track, filter_)
 
         items = items[(page - 1) * page_limit:page * page_limit] if total_items >= page * page_limit \
             else items[(page - 1) * page_limit:]
@@ -1086,8 +1097,8 @@ class GUI:
         if len(items) == 0:
             Label(item_frame, text="No Items!", font=("Calibri", 36, "bold"), bg=self.background_bg).pack()
 
+        bg = "salmon"
         if not select_user:
-            bg = "salmon"
             initial_dir, title_1 = "%documents%", "Select the File to Import From"
             file_types = ('csv files only', '*.csv')
 
@@ -1123,6 +1134,42 @@ class GUI:
             next_btn.grid(row=0, column=4)
 
             [Grid.columnconfigure(item_actions_frame, i, weight=1) for i in range(5)]
+        else:
+            previous_btn = Button(item_actions_frame, text="PREVIOUS", font=font, bg=bg, width=12,
+                                  command=lambda: self.combine_funcs(
+                                      self.items_page.set(page-1), self.page_populator(
+                                          caller, select_user=select_user, account_track=account_track,
+                                          product_track=product_track)) if page > 1 else None)
+            previous_btn.grid(row=0, column=0)
+
+            page_lbl = Label(item_actions_frame, text="Page {0} of {1}".format(page, total_pages),
+                             font=font, bg=bg, width=12)
+            page_lbl.grid(row=0, column=1)
+
+            next_btn = Button(item_actions_frame, text="NEXT", font=font, bg=bg, width=12,
+                              command=lambda: self.combine_funcs(
+                                  self.items_page.set(page + 1), self.page_populator(
+                                      caller, select_user=select_user, account_track=account_track,
+                                      product_track=product_track))
+                              if page < total_pages else None)
+            next_btn.grid(row=0, column=2)
+
+            [Grid.columnconfigure(item_actions_frame, i, weight=1) for i in range(3)]
+
+        if caller in ["Accounts", "Transactions"]:
+            for letter in self.letters:
+                self.main_frame.bind_all(letter, lambda event: self.page_populator(
+                    caller, select_user, account_track, product_track, filter_ + event.keysym if filter_ is not None
+                    else event.keysym))
+
+            self.main_frame.bind_all('<BackSpace>', lambda event: self.page_populator(
+                caller, select_user, account_track, product_track, filter_[:-1])) if filter_ is not None else None
+
+    def _unbind(self):
+        for letter in self.letters:
+            self.main_frame.unbind_all(letter)
+
+        self.main_frame.unbind_all('<BackSpace>')
 
     def transactions(self, item_info=None):
 
@@ -1257,6 +1304,9 @@ class GUI:
                              if messagebox.askyesno("Confirm", back_msg) else None)
         self.title.set("Transactions{0}".format(" - {0} {1}".format(*item_info[1:3]) if item_info is not None else ""))
 
+        self._unbind()
+        self.items_page.set(1)
+
         product_frame = Frame(self.main_frame, bg=self.background_bg)
         product_frame.grid(row=0, column=0, sticky=N + E + S + W)
 
@@ -1268,7 +1318,7 @@ class GUI:
 
         Grid.rowconfigure(self.main_frame, 0, weight=1), Grid.columnconfigure(self.main_frame, 0, weight=1)
 
-        font1, font2 = (self.font_name, 19, "bold"), (self.font_name, 16)
+        font1, font2 = (self.font_name, 16, "bold"), (self.font_name, 14)
         font3, font4 = (self.font_name, 14, "bold"), (self.font_name, 14)
 
         column_limit = 5
@@ -1304,10 +1354,10 @@ class GUI:
 
             for product in products_:
                 frame = Frame(product_frame, bg='LightSkyBlue3')
-                frame.grid(row=row, column=col, padx=10, pady=(14, 0), sticky=E + W)
+                frame.grid(row=row, column=col, padx=10, pady=1, sticky=E + W)
 
-                Label(frame, text=product[1], font=font1, width=13, bg='LightSkyBlue3').grid(row=0, column=0,
-                                                                                             sticky=E + W)
+                Label(frame, text=product[1], font=font1, width=13, bg='LightSkyBlue3', wrap=200, height=2).grid(
+                    row=0, column=0, sticky=E + W)
                 Label(frame, text="£{0:.2f}".format(product[4] if product[4] is not None else 0), font=font2,
                       bg='LightSkyBlue3').grid(row=1, column=0, sticky=E + W)
 
@@ -1316,12 +1366,13 @@ class GUI:
 
                 Button(frame, text="+", font=font2, width=3, bg="orange",
                        command=lambda item=product: add_transaction(item)
-                       if item_info is not None else no_user()).grid(row=0, column=1)
+                       if item_info is not None else no_user()).grid(row=0, column=1, sticky=N + S)
                 Button(frame, text="-", font=font2, width=3, bg="orange",
                        command=lambda item=product: remove_transaction(item)
-                       if item_info is not None else no_user()).grid(row=1, column=1)
+                       if item_info is not None else no_user()).grid(row=1, column=1, sticky=N + S)
 
                 Grid.columnconfigure(frame, 0, weight=1)
+                Grid.rowconfigure(frame, 0, weight=1)
 
                 col += 1
 
@@ -1330,6 +1381,7 @@ class GUI:
                     col = 0
 
             [Grid.columnconfigure(product_frame, i, weight=1) for i in range(column_limit)]
+            [Grid.rowconfigure(product_frame, i, weight=1) for i in range(row)]
 
         product_populator()
         transactions_individual = Frame(transactions_frame, bg='white')
@@ -1446,6 +1498,13 @@ class GUI:
         Grid.columnconfigure(self.main_frame, 0, weight=1)
         Grid.columnconfigure(self.main_frame, 1, weight=1)
         Grid.columnconfigure(self.main_frame, 2, weight=1)
+
+        Button(self.main_frame, text="Export Account Balances", bg=bg, width=20, font=("Calibri", 14),
+               command=lambda: self.combine_funcs(
+                   export_accounts_balance(), messagebox.showinfo("Account Balance Export",
+                                                                  "Account Balances have been successfully exported. "
+                                                                  "Check your documents for \"accounts_balance.csv\""))
+               ).grid(row=1, column=1, pady=20)
 
         def stats():
             self._frame_reset(self.main_frame)
@@ -1742,10 +1801,10 @@ class GUI:
                                                                                                        successful))
 
     def export(self):
-        path = filedialog.asksaveasfilename(filetypes=(("CSV Files", "*.csv"),), parent=self.main_frame,
-                                            title="Export database to CSV")
+        path_ = filedialog.asksaveasfilename(filetypes=(("CSV Files", "*.csv"),), parent=self.main_frame,
+                                             title="Export database to CSV")
 
-        export(path)
+        export(path_)
 
     def _frame_reset(self, frame):
         self._empty_frame(frame)

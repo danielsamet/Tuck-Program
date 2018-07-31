@@ -32,7 +32,7 @@ def _db_execute(sql_command, *parameters):
     return results
 
 
-def get_accounts(account_id=None, f_name=None, l_name=None, top_ups=None, notes=None):
+def get_accounts(account_id=None, f_name=None, l_name=None, top_ups=None, notes=None, filter_=None):
     select = "SELECT accounts.account_ID"
     join = str()
     where = " WHERE "
@@ -64,6 +64,9 @@ def get_accounts(account_id=None, f_name=None, l_name=None, top_ups=None, notes=
             count += 1
 
     where += "{0}accounts.void != 1".format(" AND " if where != " WHERE " else "")
+
+    if filter_ is not None:
+        where += " AND l.name LIKE \"%{0}%\"".format(filter_)
 
     sql_command = select + " FROM accounts " + join + where + " ORDER BY l.name, f.name"
 
@@ -202,6 +205,12 @@ def export(path):
                 (w.write(", ".join(str(item) for item in row)))
                 w.write("\n")
             w.write("\n")
+
+
+def export_accounts_balance():
+    with open(path + "\\accounts_balance.csv", "w") as w:
+        for account in get_accounts():
+            w.write("{0}, {1}, £{2:.2f}\n".format(*account[1:4]))
 
 
 def prep_db():
@@ -465,17 +474,17 @@ def prep_db():
 
 
 if __name__ == '__main__':
-    # path = "C:\\Users\danie\Documents\\tuck.db"
-    print(path)
-    print(get_accounts())
+    path = "C:\\Users\danie\Documents"
+    # print(get_accounts(filter_="sa"))
     # print(get_account_conditions(account_id=6, discount=True))
     # from datetime import datetime
     # insert_new("accounts_l_name", [1, "Daniel", datetime.now()])
     # update("accounts_l_name", [("name", "Only Couch")], ("date", '2018-07-08 18:50:47.594578'))
-    print(get_product_conditions(product_id=1, discount=True))
-    print(_db_execute("SELECT * FROM products_purchase_limit "
-                      "WHERE product_id = 4 AND void=0 AND "
-                      "datetime(\"now\") BETWEEN datetime(start_date) AND datetime(end_date) OR "
-                      "(datetime(\"now\") > date(start_date) AND end_date = \"\")"))
+    # print(get_product_conditions(product_id=1, discount=True))
+    # print(_db_execute("SELECT * FROM products_purchase_limit "
+    #                   "WHERE product_id = 4 AND void=0 AND "
+    #                   "datetime(\"now\") BETWEEN datetime(start_date) AND datetime(end_date) OR "
+    #                   "(datetime(\"now\") > date(start_date) AND end_date = \"\")"))
 
     # print(_db_execute("SELECT datetime(\"start_date\") FROM products_purchase_limit"))
+    export_accounts_balance()
